@@ -351,6 +351,8 @@ class PassableLockManagerCard extends LitElement {
     _selectedTimelineFilter: { state: true },
     _hoveredSegment: { state: true },
     _isFetchingActivity: { state: true },
+    _isNativeEngine: { state: true },
+    _engineData: { state: true },
   };
 
   constructor() {
@@ -369,6 +371,9 @@ class PassableLockManagerCard extends LitElement {
     this._lastFetchTime = 0;
     this._fetchTimer = null;
     this._users = [];
+    this._isNativeEngine = false;
+    this._engineData = null;
+    this._lastEngineFetch = 0;
 
     this._fullDaysList = [
       "Sunday",
@@ -385,6 +390,7 @@ class PassableLockManagerCard extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._fetchUsers();
+    this._fetchEngineData();
     this._fetchActivityData();
     this._fetchTimer = setInterval(() => {
       this._fetchActivityData();
@@ -403,6 +409,9 @@ class PassableLockManagerCard extends LitElement {
     super.updated(changedProperties);
     if (changedProperties.has("hass") && this.hass) {
       const now = Date.now();
+      if (now - this._lastEngineFetch > 10000 || !this._engineData) {
+        this._fetchEngineData();
+      }
       if (now - this._lastFetchTime > 30000) {
         this._fetchActivityData();
       }
@@ -450,6 +459,35 @@ class PassableLockManagerCard extends LitElement {
     return 6;
   }
 
+  async _fetchEngineData() {
+    if (!this.hass) return;
+    if (this.config?.engine === "yaml") {
+      this._isNativeEngine = false;
+      return;
+    }
+    this._lastEngineFetch = Date.now();
+    try {
+      const res = await this.hass.connection.sendMessagePromise({
+        type: "passable_smart_lock_engine/get_data",
+        reveal_pins: true,
+      });
+      if (res && res.slots) {
+        this._engineData = res;
+        if (!this._isNativeEngine) {
+          this._isNativeEngine = true;
+          console.info(
+            "%c PASSABLE-LOCK-MANAGER-CARD %c Connected to Native Engine (WebSocket) ",
+            "color: white; background: #2196f3; font-weight: bold;",
+            "color: white; background: #10b981; font-weight: bold;"
+          );
+        }
+        this.requestUpdate();
+      }
+    } catch (e) {
+      this._isNativeEngine = false;
+    }
+  }
+
   _callService(domain, service, data) {
     if (this.hass) {
       this.hass.callService(domain, service, data);
@@ -462,6 +500,25 @@ class PassableLockManagerCard extends LitElement {
   }
 
   _getState(entityId, defaultVal = "") {
+    if (this._isNativeEngine && this._engineData?.slots) {
+      const match = entityId.match(/^(input_text|input_boolean|input_number|input_select|timer)\.lock_(?:code_|schedule_|timer_)(.+?)_(\d+)$/);
+      if (match) {
+        const [, domain, param, slotStr] = match;
+        const slotData = this._engineData.slots[slotStr];
+        if (slotData) {
+          if (param === "name") return slotData.name || "";
+          if (param === "pin") return slotData.pin || "";
+          if (param === "enabled") return slotData.enabled ? "on" : "off";
+          if (param === "guest_mode_enabled") return slotData.guest_mode ? "on" : "off";
+          if (param === "duration") return (slotData.duration || 1).toString();
+          if (param === "action") return slotData.timer_action || "Clear Code";
+          if (param === "timer") return slotData.timer_expires_at ? "active" : "idle";
+          if (param === "days") return (slotData.schedule_days || []).join(",");
+          if (param === "start_time") return slotData.schedule_start || "00:00:00";
+          if (param === "end_time") return slotData.schedule_end || "23:59:59";
+        }
+      }
+    }
     const ent = this._getEntity(entityId);
     return ent ? ent.state : defaultVal;
   }
@@ -1040,8 +1097,27 @@ class PassableLockManagerCard extends LitElement {
     this._editingSlot = null;
   }
 
-  _handleSave() {
+  async _handleSave() {
     const slot = this._editingSlot;
+    if (this._isNativeEngine) {
+      try {
+        await this.hass.connection.sendMessagePromise({
+          type: "passable_smart_lock_engine/save_slot",
+          slot: parseInt(slot, 10),
+          pin: this._localPin,
+          name: this._localName,
+        });
+        if (this._engineData?.slots && this._engineData.slots[slot]) {
+          this._engineData.slots[slot].name = this._localName;
+          this._engineData.slots[slot].pin = this._localPin;
+        }
+        this._closeEdit();
+        this.requestUpdate();
+        return;
+      } catch (err) {
+        console.warn("Native save fallback:", err);
+      }
+    }
     const scriptEntity =
       this.config?.manage_script || "script.manage_lock_codes";
     const [domain, service] = scriptEntity.split(".");
@@ -1076,6 +1152,24 @@ class PassableLockManagerCard extends LitElement {
     const [domain, service] = scriptEntity.split(".");
 
     if (confirm(`Delete code slot ${slot}?`)) {
+      if (this._isNativeEngine) {
+        try {
+          await this.hass.connection.sendMessagePromise({
+            type: "passable_smart_lock_engine/clear_slot",
+            slot: parseInt(slot, 10),
+          });
+          if (this._engineData?.slots && this._engineData.slots[slot]) {
+            this._engineData.slots[slot].name = "";
+            this._engineData.slots[slot].pin = "";
+            this._engineData.slots[slot].enabled = false;
+          }
+          this._closeEdit();
+          this.requestUpdate();
+          return;
+        } catch (err) {
+          console.warn("Native clear fallback:", err);
+        }
+      }
       this._callService("input_text", "set_value", {
         entity_id: `input_text.lock_code_name_${slot}`,
         value: "",
@@ -1095,7 +1189,29 @@ class PassableLockManagerCard extends LitElement {
     }
   }
 
-  _toggleBoolean(entityId) {
+  async _toggleBoolean(entityId) {
+    if (this._isNativeEngine) {
+      const match = entityId.match(/^input_boolean\.lock_code_enabled_(\d+)$/);
+      if (match) {
+        const slot = parseInt(match[1], 10);
+        const currentState = this._getState(entityId) === "on";
+        const newState = !currentState;
+        try {
+          await this.hass.connection.sendMessagePromise({
+            type: "passable_smart_lock_engine/toggle_slot",
+            slot: slot,
+            enabled: newState,
+          });
+          if (this._engineData?.slots && this._engineData.slots[slot]) {
+            this._engineData.slots[slot].enabled = newState;
+          }
+          this.requestUpdate();
+          return;
+        } catch (err) {
+          console.warn("Native toggle fallback:", err);
+        }
+      }
+    }
     const state = this._getState(entityId);
     this._callService(
       "input_boolean",
@@ -1188,7 +1304,12 @@ class PassableLockManagerCard extends LitElement {
         <div class="header">
           <div>
             <h1 class="title">${title}</h1>
-            <p class="subtitle">${subtitle}</p>
+            <p class="subtitle">
+              ${subtitle}
+              <span class="engine-badge ${this._isNativeEngine ? "native" : "yaml"}">
+                ${this._isNativeEngine ? "● Native Engine" : "● YAML Helpers"}
+              </span>
+            </p>
           </div>
 
           <div class="header-right">
@@ -2766,6 +2887,27 @@ class PassableLockManagerCard extends LitElement {
       .badge.info {
         background-color: rgba(var(--rgb-info-color, 33, 150, 243), 0.15);
         color: var(--info-color, #2196f3);
+      }
+      .engine-badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 1px 7px;
+        border-radius: 9999px;
+        margin-left: 8px;
+        letter-spacing: 0.02em;
+        vertical-align: middle;
+      }
+      .engine-badge.native {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+      }
+      .engine-badge.yaml {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.3);
       }
 
       /* Edit View Styles */
