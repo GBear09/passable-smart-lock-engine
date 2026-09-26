@@ -1,0 +1,1119 @@
+# Lock Manager Package
+# ------------------------------------------------------------------------------
+# INSTRUCTIONS:
+# 1. DELETE existing 'Lock Schedule Days X' entities from HA Settings > Devices & Services > Helpers
+#    (We are changing them from input_select to input_text)
+# 2. Place this file in your Home Assistant 'packages' directory.
+# 3. Reload YAML or Restart Home Assistant
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# 1. INPUT TEXT HELPERS
+# ------------------------------------------------------------------------------
+input_text:
+  # --- Slot 1 ---
+  lock_code_name_1:
+    name: Lock Code Name 1
+    icon: mdi:account
+  lock_code_pin_1:
+    name: Lock Code PIN 1
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_1:
+    name: Lock Schedule Days 1
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 2 ---
+  lock_code_name_2:
+    name: Lock Code Name 2
+    icon: mdi:account
+  lock_code_pin_2:
+    name: Lock Code PIN 2
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_2:
+    name: Lock Schedule Days 2
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 3 ---
+  lock_code_name_3:
+    name: Lock Code Name 3
+    icon: mdi:account
+  lock_code_pin_3:
+    name: Lock Code PIN 3
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_3:
+    name: Lock Schedule Days 3
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 4 ---
+  lock_code_name_4:
+    name: Lock Code Name 4
+    icon: mdi:account
+  lock_code_pin_4:
+    name: Lock Code PIN 4
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_4:
+    name: Lock Schedule Days 4
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 5 ---
+  lock_code_name_5:
+    name: Lock Code Name 5
+    icon: mdi:account
+  lock_code_pin_5:
+    name: Lock Code PIN 5
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_5:
+    name: Lock Schedule Days 5
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 6 ---
+  lock_code_name_6:
+    name: Lock Code Name 6
+    icon: mdi:account
+  lock_code_pin_6:
+    name: Lock Code PIN 6
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_6:
+    name: Lock Schedule Days 6
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 7 ---
+  lock_code_name_7:
+    name: Lock Code Name 7
+    icon: mdi:account
+  lock_code_pin_7:
+    name: Lock Code PIN 7
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_7:
+    name: Lock Schedule Days 7
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 8 ---
+  lock_code_name_8:
+    name: Lock Code Name 8
+    icon: mdi:account
+  lock_code_pin_8:
+    name: Lock Code PIN 8
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_8:
+    name: Lock Schedule Days 8
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 9 ---
+  lock_code_name_9:
+    name: Lock Code Name 9
+    icon: mdi:account
+  lock_code_pin_9:
+    name: Lock Code PIN 9
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_9:
+    name: Lock Schedule Days 9
+    icon: mdi:calendar-week
+    mode: text
+
+  # --- Slot 10 ---
+  lock_code_name_10:
+    name: Lock Code Name 10
+    icon: mdi:account
+  lock_code_pin_10:
+    name: Lock Code PIN 10
+    icon: mdi:dialpad
+    mode: text
+  lock_schedule_days_10:
+    name: Lock Schedule Days 10
+    icon: mdi:calendar-week
+    mode: text
+
+
+# ------------------------------------------------------------------------------
+# 2. INPUT BOOLEAN HELPERS
+# ------------------------------------------------------------------------------
+input_boolean:
+  lock_code_enabled_1:
+    name: Lock Code Enabled 1
+    icon: mdi:lock-check
+  lock_schedule_enabled_1:
+    name: Lock Schedule Enabled 1
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_1:
+    name: Lock Guest Mode Enabled 1
+    icon: mdi:home-account
+  lock_code_enabled_2:
+    name: Lock Code Enabled 2
+    icon: mdi:lock-check
+  lock_schedule_enabled_2:
+    name: Lock Schedule Enabled 2
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_2:
+    name: Lock Guest Mode Enabled 2
+    icon: mdi:home-account
+  lock_code_enabled_3:
+    name: Lock Code Enabled 3
+    icon: mdi:lock-check
+  lock_schedule_enabled_3:
+    name: Lock Schedule Enabled 3
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_3:
+    name: Lock Guest Mode Enabled 3
+    icon: mdi:home-account
+  lock_code_enabled_4:
+    name: Lock Code Enabled 4
+    icon: mdi:lock-check
+  lock_schedule_enabled_4:
+    name: Lock Schedule Enabled 4
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_4:
+    name: Lock Guest Mode Enabled 4
+    icon: mdi:home-account
+  lock_code_enabled_5:
+    name: Lock Code Enabled 5
+    icon: mdi:lock-check
+  lock_schedule_enabled_5:
+    name: Lock Schedule Enabled 5
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_5:
+    name: Lock Guest Mode Enabled 5
+    icon: mdi:home-account
+  lock_code_enabled_6:
+    name: Lock Code Enabled 6
+    icon: mdi:lock-check
+  lock_schedule_enabled_6:
+    name: Lock Schedule Enabled 6
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_6:
+    name: Lock Guest Mode Enabled 6
+    icon: mdi:home-account
+  lock_code_enabled_7:
+    name: Lock Code Enabled 7
+    icon: mdi:lock-check
+  lock_schedule_enabled_7:
+    name: Lock Schedule Enabled 7
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_7:
+    name: Lock Guest Mode Enabled 7
+    icon: mdi:home-account
+  lock_code_enabled_8:
+    name: Lock Code Enabled 8
+    icon: mdi:lock-check
+  lock_schedule_enabled_8:
+    name: Lock Schedule Enabled 8
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_8:
+    name: Lock Guest Mode Enabled 8
+    icon: mdi:home-account
+  lock_code_enabled_9:
+    name: Lock Code Enabled 9
+    icon: mdi:lock-check
+  lock_schedule_enabled_9:
+    name: Lock Schedule Enabled 9
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_9:
+    name: Lock Guest Mode Enabled 9
+    icon: mdi:home-account
+  lock_code_enabled_10:
+    name: Lock Code Enabled 10
+    icon: mdi:lock-check
+  lock_schedule_enabled_10:
+    name: Lock Schedule Enabled 10
+    icon: mdi:calendar-clock
+  lock_guest_mode_enabled_10:
+    name: Lock Guest Mode Enabled 10
+    icon: mdi:home-account
+
+
+# ------------------------------------------------------------------------------
+# 3. INPUT NUMBER HELPERS
+# ------------------------------------------------------------------------------
+input_number:
+  lock_code_duration_1:
+    name: Lock Code Duration 1
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_2:
+    name: Lock Code Duration 2
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_3:
+    name: Lock Code Duration 3
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_4:
+    name: Lock Code Duration 4
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_5:
+    name: Lock Code Duration 5
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_6:
+    name: Lock Code Duration 6
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_7:
+    name: Lock Code Duration 7
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_8:
+    name: Lock Code Duration 8
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_9:
+    name: Lock Code Duration 9
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+  lock_code_duration_10:
+    name: Lock Code Duration 10
+    min: 0
+    max: 72
+    step: 1
+    unit_of_measurement: h
+    icon: mdi:timer-sand
+    mode: box
+
+
+# ------------------------------------------------------------------------------
+# 4. INPUT SELECT HELPERS
+# ------------------------------------------------------------------------------
+input_select:
+  lock_timer_action_1:
+    name: Lock Timer Action 1
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_2:
+    name: Lock Timer Action 2
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_3:
+    name: Lock Timer Action 3
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_4:
+    name: Lock Timer Action 4
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_5:
+    name: Lock Timer Action 5
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_6:
+    name: Lock Timer Action 6
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_7:
+    name: Lock Timer Action 7
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_8:
+    name: Lock Timer Action 8
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_9:
+    name: Lock Timer Action 9
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+  lock_timer_action_10:
+    name: Lock Timer Action 10
+    options:
+      - Disable Code
+      - Clear Code
+    icon: mdi:timer-off
+
+
+# ------------------------------------------------------------------------------
+# 5. INPUT DATETIME HELPERS
+# ------------------------------------------------------------------------------
+input_datetime:
+  lock_schedule_start_time_1:
+    name: Lock Schedule Start Time 1
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_1:
+    name: Lock Schedule End Time 1
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_2:
+    name: Lock Schedule Start Time 2
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_2:
+    name: Lock Schedule End Time 2
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_3:
+    name: Lock Schedule Start Time 3
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_3:
+    name: Lock Schedule End Time 3
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_4:
+    name: Lock Schedule Start Time 4
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_4:
+    name: Lock Schedule End Time 4
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_5:
+    name: Lock Schedule Start Time 5
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_5:
+    name: Lock Schedule End Time 5
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_6:
+    name: Lock Schedule Start Time 6
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_6:
+    name: Lock Schedule End Time 6
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_7:
+    name: Lock Schedule Start Time 7
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_7:
+    name: Lock Schedule End Time 7
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_8:
+    name: Lock Schedule Start Time 8
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_8:
+    name: Lock Schedule End Time 8
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_9:
+    name: Lock Schedule Start Time 9
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_9:
+    name: Lock Schedule End Time 9
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  lock_schedule_start_time_10:
+    name: Lock Schedule Start Time 10
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  lock_schedule_end_time_10:
+    name: Lock Schedule End Time 10
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+
+
+# ------------------------------------------------------------------------------
+# 6. TIMERS
+# ------------------------------------------------------------------------------
+timer:
+  lock_code_timer_1:
+    name: Lock Code Timer 1
+    icon: mdi:timer-outline
+  lock_code_timer_2:
+    name: Lock Code Timer 2
+    icon: mdi:timer-outline
+  lock_code_timer_3:
+    name: Lock Code Timer 3
+    icon: mdi:timer-outline
+  lock_code_timer_4:
+    name: Lock Code Timer 4
+    icon: mdi:timer-outline
+  lock_code_timer_5:
+    name: Lock Code Timer 5
+    icon: mdi:timer-outline
+  lock_code_timer_6:
+    name: Lock Code Timer 6
+    icon: mdi:timer-outline
+  lock_code_timer_7:
+    name: Lock Code Timer 7
+    icon: mdi:timer-outline
+  lock_code_timer_8:
+    name: Lock Code Timer 8
+    icon: mdi:timer-outline
+  lock_code_timer_9:
+    name: Lock Code Timer 9
+    icon: mdi:timer-outline
+  lock_code_timer_10:
+    name: Lock Code Timer 10
+    icon: mdi:timer-outline
+
+
+# ------------------------------------------------------------------------------
+# 7. AUTOMATIONS
+# ------------------------------------------------------------------------------
+automation:
+  - alias: Disable or Clear Timed Lock Code on Expiry
+    description: When a lock code timer finishes, clear or disable that code based on action.
+    triggers:
+      - event_type: timer.finished
+        trigger: event
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.event.data.entity_id.startswith('timer.lock_code_timer_') }}"
+    actions:
+      - variables:
+          slot: "{{ trigger.event.data.entity_id.split('_')[-1] }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ is_state('input_select.lock_timer_action_' ~ slot, 'Disable Code') }}
+            sequence:
+              - data:
+                  action: disable
+                  code_slot: "{{ slot }}"
+                action: script.manage_lock_codes
+        default:
+          - data:
+              action: clear
+              code_slot: "{{ slot }}"
+            action: script.manage_lock_codes
+    mode: parallel
+
+  - alias: Immediate Schedule Check on Enable or Change
+    description: >-
+      When a schedule is enabled or changed, immediately determines if the code
+      should be active or inactive based on the current day and time.
+    triggers:
+      - event_type: state_changed
+        trigger: event
+    conditions:
+      - condition: template
+        value_template: >-
+          {% set entity_id = trigger.event.data.entity_id %} 
+          {% set new_state = trigger.event.data.new_state %} 
+          {% set old_state = trigger.event.data.old_state %} 
+          {% if new_state and new_state.context and new_state.context.parent_id is none and old_state and new_state.state != old_state.state %}
+            {% set slot = entity_id.split('_')[-1] %}
+            {% set schedule_toggled_on = entity_id.startswith('input_boolean.lock_schedule_enabled_') and new_state.state == 'on' %}
+            {% set is_schedule_parameter = entity_id.startswith(('input_text.lock_schedule_days_', 'input_datetime.lock_schedule_start_time_', 'input_datetime.lock_schedule_end_time_')) %}
+            {% set schedule_is_enabled = is_state('input_boolean.lock_schedule_enabled_' ~ slot, 'on') %}
+            {% set schedule_parameter_changed = is_schedule_parameter and schedule_is_enabled %}
+            {{ schedule_toggled_on or schedule_parameter_changed }}
+          {% else %}
+            {{ false }}
+          {% endif %}
+    actions:
+      - variables:
+          slot: "{{ trigger.event.data.entity_id.split('_')[-1] }}"
+          start_time: "{{ states('input_datetime.lock_schedule_start_time_' ~ slot) }}"
+          end_time: "{{ states('input_datetime.lock_schedule_end_time_' ~ slot) }}"
+          day_selection: "{{ states('input_text.lock_schedule_days_' ~ slot) }}"
+          current_day: "{{ now().strftime('%A') }}"
+          is_within_time: "{{ start_time <= now().strftime('%H:%M:%S') < end_time }}"
+          is_correct_day: "{{ current_day in day_selection }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ is_within_time and is_correct_day }}"
+            sequence:
+              - data:
+                  action: enable
+                  code_slot: "{{ slot }}"
+                action: script.manage_lock_codes
+        default:
+          - data:
+              action: disable
+              code_slot: "{{ slot }}"
+            action: script.manage_lock_codes
+    mode: queued
+
+  - alias: Lock Code Scheduling
+    description: >-
+      Enables or disables lock codes based on their defined schedules.
+    triggers:
+      - id: start
+        at:
+          - input_datetime.lock_schedule_start_time_1
+          - input_datetime.lock_schedule_start_time_2
+          - input_datetime.lock_schedule_start_time_3
+          - input_datetime.lock_schedule_start_time_4
+          - input_datetime.lock_schedule_start_time_5
+          - input_datetime.lock_schedule_start_time_6
+          - input_datetime.lock_schedule_start_time_7
+          - input_datetime.lock_schedule_start_time_8
+          - input_datetime.lock_schedule_start_time_9
+          - input_datetime.lock_schedule_start_time_10
+        trigger: time
+      - id: end
+        at:
+          - input_datetime.lock_schedule_end_time_1
+          - input_datetime.lock_schedule_end_time_2
+          - input_datetime.lock_schedule_end_time_3
+          - input_datetime.lock_schedule_end_time_4
+          - input_datetime.lock_schedule_end_time_5
+          - input_datetime.lock_schedule_end_time_6
+          - input_datetime.lock_schedule_end_time_7
+          - input_datetime.lock_schedule_end_time_8
+          - input_datetime.lock_schedule_end_time_9
+          - input_datetime.lock_schedule_end_time_10
+        trigger: time
+    conditions:
+      - condition: template
+        value_template: "{{ is_state('input_boolean.lock_schedule_enabled_' ~ slot, 'on') }}"
+    actions:
+      - variables:
+          day_selection: "{{ states('input_text.lock_schedule_days_' ~ slot) }}"
+          current_day: "{{ now().strftime('%A') }}"
+          is_correct_day: "{{ current_day in day_selection }}"
+      - condition: template
+        value_template: "{{ is_correct_day }}"
+      - data:
+          action: "{{ 'enable' if trigger.id == 'start' else 'disable' }}"
+          code_slot: "{{ slot }}"
+        action: script.manage_lock_codes
+    variables:
+      slot: "{{ trigger.entity_id.split('_')[-1] }}"
+    mode: queued
+
+  - alias: Notification - Lock Code Use
+    description: Sends a notification when a door is unlocked via keypad. Upgrades title to "Welcome Home" if arriving. Debounced to prevent rapid duplicates or overlaps with the Arrival automation.
+    triggers:
+      - trigger: state
+        entity_id: sensor.last_entry_door_action
+    conditions:
+      - condition: template
+        # Only trigger if the new state contains "unlocked by" (ignores manual locks/unlocks)
+        value_template: "{{ 'unlocked by' in trigger.to_state.state }}"
+      - condition: template
+        # DEBOUNCE: Do not fire if this automation triggered in the last 60 seconds (prevents double-door entries)
+        value_template: >
+          {{ state_attr(this.entity_id, 'last_triggered') == none or 
+             (now() - state_attr(this.entity_id, 'last_triggered')).total_seconds() > 60 }}
+      - condition: template
+        value_template: >
+          {{ is_state('input_select.home_mode', 'Home') }}
+      - condition: template
+        value_template: >
+          {{ (now() - states.input_select.home_mode.last_changed).total_seconds() > 300
+            or states('input_select.home_mode') != 'Home' }}
+      - condition: template
+        # SUPPRESSION: Do not fire if the main Arrival automation sent a "Welcome Home" in the last 3 minutes
+        value_template: >
+          {{ state_attr('automation.system_arrival_handler', 'last_triggered') == none or 
+             (now() - state_attr('automation.system_arrival_handler', 'last_triggered')).total_seconds() > 180 }}
+    actions:
+      - variables:
+          slot: "{{ trigger.to_state.attributes.slot }}"
+          user_name: "{{ states('input_text.lock_code_name_' ~ slot) if slot != 'N/A' else 'Someone' }}"
+          # Identify if this lock action is an arrival (presence hasn't updated yet, or home mode is away/vacation)
+          is_arrival: >-
+            {{ is_state('binary_sensor.someone_is_home', 'off') or 
+               is_state('input_select.home_mode', 'Away') or 
+               is_state('input_select.home_mode', 'Vacation') }}
+      - data:
+          title: "{{ 'Welcome Home, ' ~ user_name ~ '! 🏡' if is_arrival else 'Door Unlocked' }}"
+          message: "{{ trigger.to_state.state }}."
+          target_person: all
+        action: script.intelligent_notify
+    mode: single
+
+  - alias: Periodic Lock Code Sync
+    description: Runs daily to ensure physical lock codes are in sync.
+    triggers:
+      - at: "03:00:00"
+        trigger: time
+    conditions: []
+    actions:
+      - variables:
+          total_slots: >
+            {{ states.input_text | selectattr('entity_id', 'match',
+            'input_text.lock_code_name_.*') | list | count }}
+      - repeat:
+          count: "{{ total_slots }}"
+          sequence:
+            - data:
+                action: sync
+                code_slot: "{{ repeat.index }}"
+              action: script.manage_lock_codes
+    mode: queued
+
+  - alias: Toggle Lock Code Enable State
+    description: When a lock code enabled toggle is flipped, enable or disable the code.
+    triggers:
+      - event_type: state_changed
+        trigger: event
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.entity_id.startswith('input_boolean.lock_code_enabled_')
+          and trigger.event.data.old_state.state != trigger.event.data.new_state.state 
+          and trigger.event.data.new_state.context.parent_id is none }}
+    actions:
+      - variables:
+          slot: "{{ trigger.event.data.entity_id.split('_')[-1] }}"
+          action_to_take: >-
+            {{ 'enable' if trigger.event.data.new_state.state == 'on' else 'disable' }}
+      - if:
+          - condition: template
+            value_template: >-
+              {{ action_to_take == 'disable' or not is_state('timer.lock_code_timer_' ~ slot, 'active') }}
+        then:
+          - data:
+              action: "{{ action_to_take }}"
+              code_slot: "{{ slot }}"
+            action: script.manage_lock_codes
+    mode: queued
+
+  - alias: Lock Code Startup Sync
+    description: >-
+      When Home Assistant starts, evaluates all lock schedules to catch any missed
+      triggers. Only sends Z-Wave commands if the current state is out of sync with the schedule.
+    triggers:
+      - trigger: homeassistant
+        event: start
+    conditions: []
+    actions:
+      - repeat:
+          count: 10
+          sequence:
+            - variables:
+                slot: "{{ repeat.index | string }}"
+                start_time: "{{ states('input_datetime.lock_schedule_start_time_' ~ slot) }}"
+                end_time: "{{ states('input_datetime.lock_schedule_end_time_' ~ slot) }}"
+                day_selection: "{{ states('input_text.lock_schedule_days_' ~ slot) }}"
+                current_day: "{{ now().strftime('%A') }}"
+                is_within_time: >-
+                  {{ start_time <= now().strftime('%H:%M:%S') < end_time }}
+                is_correct_day: "{{ current_day in day_selection }}"
+                schedule_is_enabled: "{{ is_state('input_boolean.lock_schedule_enabled_' ~ slot, 'on') }}"
+                currently_enabled: "{{ is_state('input_boolean.lock_code_enabled_' ~ slot, 'on') }}"
+                should_be_enabled: "{{ schedule_is_enabled and is_within_time and is_correct_day }}"
+            # ONLY proceed if the schedule is turned on AND the current state is wrong
+            - if:
+                - condition: template
+                  value_template: "{{ schedule_is_enabled and (should_be_enabled != currently_enabled) }}"
+              then:
+                - choose:
+                    - conditions:
+                        - condition: template
+                          value_template: "{{ should_be_enabled }}"
+                      sequence:
+                        - data:
+                            action: enable
+                            code_slot: "{{ slot }}"
+                          action: script.manage_lock_codes
+                  default:
+                    - data:
+                        action: disable
+                        code_slot: "{{ slot }}"
+                      action: script.manage_lock_codes
+    mode: single
+
+
+# ------------------------------------------------------------------------------
+# 8. SCRIPTS
+# ------------------------------------------------------------------------------
+script:
+  generate_random_lock_code:
+    alias: Generate Random Lock Code
+    mode: single
+    icon: mdi:shuffle-variant
+    fields:
+      code_slot:
+        description: Slot number
+        example: '1'
+        required: true
+      length:
+        description: Length of PIN
+        default: 6
+        example: '6'
+    sequence:
+      - variables:
+          pin_length: "{{ length | default(6) | int }}"
+      - action: input_text.set_value
+        target:
+          entity_id: "input_text.lock_code_pin_{{ code_slot }}"
+        data:
+          value: >-
+            {% set ns = namespace(pin='') %}
+            {%- for i in range(pin_length) -%}
+              {%- set ns.pin = ns.pin ~ (range(0,10) | random) -%}
+            {%- endfor -%}
+            {{ ns.pin }}
+
+  manage_lock_codes:
+    alias: Manage Lock Codes
+    description: Sets, clears, enables, or disables user codes for both locks.
+    icon: mdi:door-key
+    mode: queued
+    max: 20
+    fields:
+      code_slot:
+        description: The user code slot to modify (e.g., 1, 2, 3).
+        example: '1'
+        required: true
+      action:
+        description: "The action to perform: set, clear, set_timed, enable, disable, sync."
+        example: set
+        required: true
+    sequence:
+      - choose:
+          # --- SYNC ACTION (Daily Maintenance) ---
+          - conditions:
+              - condition: template
+                value_template: "{{ action == 'sync' }}"
+            sequence:
+              - variables:
+                  pin_code: "{{ states('input_text.lock_code_pin_' ~ code_slot) | trim }}"
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ is_state('input_boolean.lock_code_enabled_' ~ code_slot, 'on') }}
+                      - condition: template
+                        value_template: "{{ pin_code | string | length >= 4 and pin_code | string is match('^[0-9]+$') }}"
+                    sequence:
+                      - target:
+                          entity_id: lock.front_door
+                        data:
+                          code_slot: "{{ code_slot }}"
+                          usercode: "{{ pin_code }}"
+                        action: zwave_js.set_lock_usercode
+                        continue_on_error: true
+                      - delay:
+                          seconds: 2
+                      - target:
+                          entity_id: lock.mudroom_door
+                        data:
+                          code_slot: "{{ code_slot }}"
+                          usercode: "{{ pin_code }}"
+                        action: zwave_js.set_lock_usercode
+                        continue_on_error: true
+                default:
+                  - target:
+                      entity_id: lock.front_door
+                    data:
+                      code_slot: "{{ code_slot }}"
+                    action: zwave_js.clear_lock_usercode
+                    continue_on_error: true
+                  - delay:
+                      seconds: 2
+                  - target:
+                      entity_id: lock.mudroom_door
+                    data:
+                      code_slot: "{{ code_slot }}"
+                    action: zwave_js.clear_lock_usercode
+                    continue_on_error: true
+          
+          # --- SET / ENABLE / TIMED ACTIONS ---
+          - conditions:
+              - condition: template
+                value_template: "{{ action in ['set', 'enable', 'set_timed'] }}"
+            sequence:
+              - variables:
+                  pin_code: "{{ states('input_text.lock_code_pin_' ~ code_slot) | trim }}"
+              
+              - if:
+                  - condition: template
+                    value_template: "{{ pin_code | string | length >= 4 and pin_code | string is match('^[0-9]+$') }}"
+                then:
+                  - repeat:
+                      count: 3
+                      sequence:
+                        - target:
+                            entity_id: lock.front_door
+                          data:
+                            code_slot: "{{ code_slot }}"
+                            usercode: "{{ pin_code }}"
+                          action: zwave_js.set_lock_usercode
+                          continue_on_error: true
+                        - delay:
+                            seconds: 4
+                        - target:
+                            entity_id: lock.mudroom_door
+                          data:
+                            code_slot: "{{ code_slot }}"
+                            usercode: "{{ pin_code }}"
+                          action: zwave_js.set_lock_usercode
+                          continue_on_error: true
+                        - delay:
+                            seconds: 4
+                  
+                  - if:
+                      - condition: template
+                        value_template: "{{ action == 'set_timed' }}"
+                    then:
+                      - target:
+                          entity_id: timer.lock_code_timer_{{ code_slot }}
+                        data:
+                          duration: >-
+                            {{ states('input_number.lock_code_duration_' ~ code_slot) |
+                            int(0) * 3600 }}
+                        action: timer.start
+
+                  - if:
+                      - condition: template
+                        value_template: "{{ action in ['enable', 'set_timed'] }}"
+                    then:
+                      - target:
+                          entity_id: input_boolean.lock_code_enabled_{{ code_slot }}
+                        action: input_boolean.turn_on
+                  
+                  - if:
+                      - condition: template
+                        value_template: "{{ action == 'enable' }}"
+                    then:
+                      - target:
+                          entity_id: timer.lock_code_timer_{{ code_slot }}
+                        action: timer.cancel
+
+                else:
+                  - action: system_log.write
+                    data:
+                      message: "Lock Manager: Attempted to set invalid PIN for slot {{ code_slot }}. Value: '{{ pin_code }}'"
+                      level: error
+
+          # --- DISABLE / CLEAR ACTIONS ---
+          - conditions:
+              - condition: template
+                value_template: "{{ action in ['disable', 'clear'] }}"
+            sequence:
+              - repeat:
+                  count: 3
+                  sequence:
+                    - target:
+                        entity_id: lock.front_door
+                      data:
+                        code_slot: "{{ code_slot }}"
+                      action: zwave_js.clear_lock_usercode
+                      continue_on_error: true
+                    - delay:
+                        seconds: 4
+                    - target:
+                        entity_id: lock.mudroom_door
+                      data:
+                        code_slot: "{{ code_slot }}"
+                      action: zwave_js.clear_lock_usercode
+                      continue_on_error: true
+                    - delay:
+                        seconds: 4
+
+              - target:
+                  entity_id: input_boolean.lock_code_enabled_{{ code_slot }}
+                action: input_boolean.turn_off
+              - target:
+                  entity_id: timer.lock_code_timer_{{ code_slot }}
+                action: timer.cancel
+              - if:
+                  - condition: template
+                    value_template: "{{ action == 'clear' }}"
+                then:
+                  - target:
+                      entity_id: input_text.lock_code_name_{{ code_slot }}
+                    data:
+                      value: ""
+                    action: input_text.set_value
+                  - target:
+                      entity_id: input_text.lock_code_pin_{{ code_slot }}
+                    data:
+                      value: ""
+                    action: input_text.set_value
+                  - target:
+                      entity_id: input_number.lock_code_duration_{{ code_slot }}
+                    data:
+                      value: 1
+                    action: input_number.set_value
+                  - target:
+                      entity_id: input_select.lock_timer_action_{{ code_slot }}
+                    data:
+                      option: Clear Code
+                    action: input_select.select_option
+                  - target:
+                      entity_id: input_boolean.lock_schedule_enabled_{{ code_slot }}
+                    action: input_boolean.turn_off
+                  - target:
+                      entity_id: input_text.lock_schedule_days_{{ code_slot }}
+                    data:
+                      value: "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday"
+                    action: input_text.set_value
+                  - target:
+                      entity_id: input_datetime.lock_schedule_start_time_{{ code_slot }}
+                    data:
+                      time: "00:00:00"
+                    action: input_datetime.set_datetime
+                  - target:
+                      entity_id: input_datetime.lock_schedule_end_time_{{ code_slot }}
+                    data:
+                      time: "23:59:59"
+                    action: input_datetime.set_datetime
+
+  manage_scheduled_code:
+    alias: Manage Scheduled Code
+    description: "Evaluates the new list format for schedules"
+    fields:
+      slot:
+        description: The code slot to check.
+        example: '1'
+      action_type:
+        description: Whether to 'enable' or 'disable'.
+        example: enable
+    sequence:
+      - variables:
+          schedule_enabled: "{{ is_state('input_boolean.lock_schedule_enabled_' ~ slot, 'on') }}"
+          day_selection: "{{ states('input_text.lock_schedule_days_' ~ slot) }}"
+          today_is: "{{ now().strftime('%A') }}"
+      - condition: template
+        value_template: "{{ schedule_enabled }}"
+      - condition: template
+        value_template: "{{ today_is in day_selection }}"
+      - data:
+          action: "{{ action_type }}"
+          code_slot: "{{ slot }}"
+        action: script.manage_lock_codes
+
+  get_lock_user_info:
+    alias: "Get Lock User Info"
+    description: "Translates Yale lock alarmType and alarmLevel into user details."
+    mode: parallel
+    fields:
+      alarm_type:
+        description: "The alarmType sensor state (19 for keypad, 145 for biometric)"
+        example: "145"
+      alarm_level:
+        description: "The alarmLevel sensor state (slot number)"
+        example: "1"
+    sequence:
+      - variables:
+          type: "{{ alarm_type | string }}"
+          slot: "{{ alarm_level | string }}"
+
+          # Map your fixed Biometric Slots here
+          biometric_slots:
+            "1": "Family Member 1"
+            "2": "Family Member 2"
+            "3": "Family Member 3"
+            "4": "Family Member 4"
+
+          # Resolve the Person's Name
+          person_name: >
+            {% if type | string == '145' %}
+              {{ biometric_slots.get(slot, 'Unknown Family Member') }}
+            {% elif type | string == '19' %}
+              {{ states('input_text.lock_code_name_' ~ slot) }}
+            {% else %}
+              Unknown
+            {% endif %}
+
+          # Resolve Family Status (All biometrics are family)
+          is_family: >
+            {% if type | string == '145' %}
+              true
+            {% elif type | string == '19' %}
+              {{ person_name == 'Family' }}
+            {% else %}
+              false
+            {% endif %}
+
+          # Resolve Guest Status (Guests only use keypad)
+          is_guest: >
+            {% if type | string == '19' %}
+              {{ is_state('input_boolean.lock_guest_mode_enabled_' ~ slot, 'on') }}
+            {% else %}
+              false
+            {% endif %}
+
+      # Define the dictionary as a variable first
+      - variables:
+          user_info:
+            person_name: "{{ person_name }}"
+            is_family: "{{ is_family == true or is_family == 'true' or is_family == 'True' }}"
+            is_guest: "{{ is_guest == true or is_guest == 'true' or is_guest == 'True' }}"
+
+      # Return the packaged dictionary variable
+      - stop: "Returning user info"
+        response_variable: user_info

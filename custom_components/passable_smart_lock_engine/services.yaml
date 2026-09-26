@@ -1,0 +1,185 @@
+set_code:
+  name: Set Lock Code
+  description: Sets or updates a PIN code and schedule rules for a lock slot.
+  fields:
+    code_slot:
+      name: Code Slot
+      description: The slot number to program (1-30).
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 30
+    pin:
+      name: PIN Code
+      description: The 4 to 8 digit numeric PIN.
+      required: true
+      example: "123456"
+      selector:
+        text:
+    name:
+      name: Slot Name
+      description: The user or label for this code.
+      example: "Cleaner"
+      selector:
+        text:
+    enabled:
+      name: Enabled
+      description: Whether the code is active.
+      default: true
+      selector:
+        boolean:
+    guest_mode:
+      name: Guest Mode
+      description: Mark this slot as a guest code.
+      default: false
+      selector:
+        boolean:
+    duration:
+      name: Duration (Hours)
+      description: Hours for temporary access countdown.
+      example: 4
+      selector:
+        number:
+          min: 0
+          max: 72
+    timer_action:
+      name: Timer Action
+      description: Action when access timer expires.
+      default: "Clear Code"
+      selector:
+        select:
+          options:
+            - "Clear Code"
+            - "Disable Code"
+    schedule_enabled:
+      name: Schedule Enabled
+      description: Restrict this code to defined days and time windows.
+      default: false
+      selector:
+        boolean:
+    schedule_days:
+      name: Schedule Days
+      description: List of allowed days of the week.
+      selector:
+        select:
+          multiple: true
+          options:
+            - "Sunday"
+            - "Monday"
+            - "Tuesday"
+            - "Wednesday"
+            - "Thursday"
+            - "Friday"
+            - "Saturday"
+    schedule_start:
+      name: Schedule Start Time
+      description: Daily allowed start time (HH:MM:SS).
+      example: "08:00:00"
+      selector:
+        time:
+    schedule_end:
+      name: Schedule End Time
+      description: Daily allowed end time (HH:MM:SS).
+      example: "17:00:00"
+      selector:
+        time:
+
+clear_code:
+  name: Clear Lock Code
+  description: Erases a code slot from storage and clears it from all physical locks.
+  fields:
+    code_slot:
+      name: Code Slot
+      description: The slot number to clear (1-30).
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 30
+
+enable_code:
+  name: Enable Lock Code
+  description: Activates an existing configured code on all physical locks.
+  fields:
+    code_slot:
+      name: Code Slot
+      description: The slot number to enable (1-30).
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 30
+
+disable_code:
+  name: Disable Lock Code
+  description: Deactivates an existing code by clearing it from physical locks while keeping the configuration saved in storage.
+  fields:
+    code_slot:
+      name: Code Slot
+      description: The slot number to disable (1-30).
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 30
+
+sync_locks:
+  name: Synchronize All Lock Codes
+  description: Pushes all enabled codes to all managed locks and ensures disabled/cleared slots are blank on hardware.
+
+generate_random_pin:
+  name: Generate Random PIN
+  description: Generates a secure random numeric PIN code.
+  fields:
+    length:
+      name: PIN Length
+      description: Number of digits in generated PIN.
+      default: 6
+      example: 6
+      selector:
+        number:
+          min: 4
+          max: 8
+
+import_from_yaml_helpers:
+  name: Import from Package YAML Helpers
+  description: Scans Home Assistant for existing input_text, input_boolean, etc., helpers and imports them into Passable Smart Lock Engine storage.
+
+get_lock_user_info:
+  name: Get Lock User Info
+  description: Translates Yale lock alarmType and alarmLevel into user details and family/guest status.
+  fields:
+    alarm_type:
+      name: Alarm Type
+      description: Sensor state (19 for keypad, 145 for biometric).
+      required: true
+      example: "19"
+      selector:
+        text:
+    alarm_level:
+      name: Alarm Level
+      description: Sensor state representing slot number.
+      required: true
+      example: "1"
+      selector:
+        text:
+
+manage_lock_codes:
+  name: Manage Lock Codes (Compatibility)
+  description: Backwards compatibility service matching script.manage_lock_codes.
+  fields:
+    code_slot:
+      name: Code Slot
+      description: Slot number.
+      required: true
+      example: 1
+    action:
+      name: Action
+      description: Action to take (set, clear, enable, disable, sync, set_timed).
+      required: true
+      example: "set"

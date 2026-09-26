@@ -1,0 +1,10 @@
+{
+  "domain": "passable_smart_lock_engine",
+  "name": "Passable Smart Lock Engine",
+  "codeowners": ["@GBear09"],
+  "config_flow": true,
+  "documentation": "https://github.com/GBear09/passable-smart-lock-engine",
+  "issue_tracker": "https://github.com/GBear09/passable-smart-lock-engine/issues",
+  "iot_class": "local_push",
+  "version": "1.0.0"
+}

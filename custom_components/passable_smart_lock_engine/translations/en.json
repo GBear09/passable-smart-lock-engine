@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Passable Smart Lock Engine",
+        "description": "Configure the smart locks you wish to manage and the initial number of PIN code slots.",
+        "data": {
+          "locks": "Managed Locks",
+          "slots_count": "Number of Managed Slots",
+          "import_helpers": "Import existing PINs and schedules from YAML package helpers"
+        }
+      }
+    },
+    "error": {
+      "no_locks_selected": "Please select at least one lock entity."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Passable Smart Lock Engine Settings",
+        "description": "Adjust managed locks, active slot counts, and map biometric fingerprint slots to family member names.",
+        "data": {
+          "locks": "Managed Locks",
+          "slots_count": "Number of Managed Slots",
+          "biometric_slot_1_name": "Biometric Slot 1 Name",
+          "biometric_slot_2_name": "Biometric Slot 2 Name",
+          "biometric_slot_3_name": "Biometric Slot 3 Name",
+          "biometric_slot_4_name": "Biometric Slot 4 Name"
+        }
+      }
+    }
+  }
+}
