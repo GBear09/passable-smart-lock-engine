@@ -1385,12 +1385,7 @@ class PassableLockManagerCard extends LitElement {
         <div class="header">
           <div>
             <h1 class="title">${title}</h1>
-            <p class="subtitle">
-              ${subtitle}
-              <span class="engine-badge ${this._isNativeEngine ? "native" : "offline"}">
-                ${this._isNativeEngine ? "● Native Engine" : "● Engine Offline"}
-              </span>
-            </p>
+            <p class="subtitle">${subtitle}</p>
           </div>
 
           <div class="header-right">
@@ -1936,10 +1931,10 @@ class PassableLockManagerCard extends LitElement {
           ? html`
               <div
                 class="timer-live-banner"
-                style="background: rgba(33, 150, 243, 0.12); border: 1px solid rgba(33, 150, 243, 0.35); padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;"
+                style="background: rgba(var(--rgb-primary-color, 33, 150, 243), 0.12); border: 1px solid rgba(var(--rgb-primary-color, 33, 150, 243), 0.35); padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px;"
               >
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="color: #2196f3;">${Icons.Clock}</span>
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                  <span style="color: var(--primary-color, #2196f3); display: flex; align-items: center;">${Icons.Clock}</span>
                   <div>
                     <div style="font-weight: 600; font-size: 13px;">Timer Active</div>
                     <div style="font-size: 12px; color: var(--secondary-text-color);">
@@ -1951,7 +1946,7 @@ class PassableLockManagerCard extends LitElement {
                 </div>
                 <button
                   class="button-outline"
-                  style="color: var(--error-color, #f44336); border-color: rgba(244,67,54,0.4); padding: 4px 10px; font-size: 12px;"
+                  style="flex: 0 0 auto; width: auto; white-space: nowrap; height: 28px; border-radius: 14px; padding: 0 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--error-color, #f44336); border-color: rgba(var(--rgb-error-color, 244, 67, 54), 0.4);"
                   @click=${() => this._handleSave(false)}
                 >
                   Cancel Timer
@@ -2057,10 +2052,10 @@ class PassableLockManagerCard extends LitElement {
                 ? html`
                     <div
                       class="timer-live-badge-box"
-                      style="display: flex; align-items: center; justify-content: space-between; background: rgba(33,150,243,0.12); border: 1px solid rgba(33,150,243,0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;"
+                      style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(var(--rgb-primary-color, 33, 150, 243), 0.12); border: 1px solid rgba(var(--rgb-primary-color, 33, 150, 243), 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;"
                     >
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="color: #2196f3;">${Icons.Clock}</span>
+                      <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                        <span style="color: var(--primary-color, #2196f3); display: flex; align-items: center;">${Icons.Clock}</span>
                         <div>
                           <div style="font-weight: 600; font-size: 13px;">Active Countdown</div>
                           <div style="font-size: 12px; color: var(--secondary-text-color);">
@@ -2072,7 +2067,7 @@ class PassableLockManagerCard extends LitElement {
                       </div>
                       <button
                         class="button-outline"
-                        style="color: var(--error-color, #f44336); border-color: rgba(244,67,54,0.4); padding: 4px 8px; font-size: 12px;"
+                        style="flex: 0 0 auto; width: auto; white-space: nowrap; height: 28px; border-radius: 14px; padding: 0 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--error-color, #f44336); border-color: rgba(var(--rgb-error-color, 244, 67, 54), 0.4);"
                         @click=${() => this._handleSave(false)}
                       >
                         Cancel

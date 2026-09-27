@@ -160,18 +160,23 @@ class PassableLockEngine:
                 if not expires_at:
                     continue
 
+                slot_num = int(slot_key)
                 if expires_at <= now:
                     # Timer expired while HA was offline
                     self.hass.async_create_task(
-                        self._async_handle_timer_expired(int(slot_key))
+                        self._async_handle_timer_expired(slot_num)
                     )
                 else:
                     # Reschedule timer callback
+                    @callback
+                    def _restore_timer_cb(now_dt: datetime, s: int = slot_num) -> None:
+                        self.hass.async_create_task(
+                            self._async_handle_timer_expired(s)
+                        )
+
                     unsub = async_track_point_in_time(
                         self.hass,
-                        lambda now, s=int(slot_key): self.hass.async_create_task(
-                            self._async_handle_timer_expired(s)
-                        ),
+                        _restore_timer_cb,
                         expires_at,
                     )
                     self._timer_unsubs[str(slot_key)] = unsub
@@ -185,17 +190,38 @@ class PassableLockEngine:
         self.hass.async_create_task(self.async_sync_all_locks())
 
     @callback
-    async def _async_scheduled_check(self, now: datetime) -> None:
+    def _async_scheduled_check(self, now: datetime) -> None:
         """Periodic schedule evaluator callback."""
-        await self.async_evaluate_schedules()
+        self.hass.async_create_task(self.async_evaluate_schedules())
 
     async def async_evaluate_schedules(self) -> None:
         """Check all slot schedules against current local day and time."""
         now_local = dt_util.now()
+        now_utc = dt_util.utcnow()
         current_day = now_local.strftime("%A")
         current_time_str = now_local.strftime("%H:%M:%S")
 
         slots = self.storage.data.get("slots", {})
+
+        # Defensive sweep: clean up any expired timers that may have been missed
+        for slot_id_str, slot_data in list(slots.items()):
+            expires_str = slot_data.get("timer_expires_at")
+            if expires_str:
+                try:
+                    exp_dt = dt_util.parse_datetime(expires_str)
+                    if exp_dt and exp_dt <= now_utc:
+                        _LOGGER.info(
+                            "Periodic sweep found expired timer for slot %s (expired at %s)",
+                            slot_id_str,
+                            expires_str,
+                        )
+                        await self._async_handle_timer_expired(int(slot_id_str))
+                except Exception as err:
+                    _LOGGER.error(
+                        "Error checking timer expiry for slot %s: %s",
+                        slot_id_str,
+                        err,
+                    )
         for slot_id_str, slot in slots.items():
             slot_id = int(slot_id_str)
             if not slot.get("schedule_enabled", False):
@@ -344,11 +370,13 @@ class PassableLockEngine:
             },
         )
 
+        @callback
+        def _timer_expired(now_dt: datetime) -> None:
+            self.hass.async_create_task(self._async_handle_timer_expired(slot))
+
         unsub = async_track_point_in_time(
             self.hass,
-            lambda now, s=slot: self.hass.async_create_task(
-                self._async_handle_timer_expired(s)
-            ),
+            _timer_expired,
             expires_at,
         )
         self._timer_unsubs[str(slot)] = unsub

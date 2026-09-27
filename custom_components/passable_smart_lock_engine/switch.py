@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -23,8 +24,28 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the slot switch entities."""
+    """Set up the slot switch entities and migrate entity IDs if necessary."""
     engine: PassableLockEngine = hass.data[DOMAIN][entry.entry_id]
+
+    ent_reg = er.async_get(hass)
+    for slot_num in range(1, int(engine.slots_count) + 1):
+        unique_id = f"{DOMAIN}_slot_{slot_num}_enabled"
+        current_entity_id = ent_reg.async_get_entity_id("switch", DOMAIN, unique_id)
+        target_entity_id = f"switch.passable_smart_lock_engine_slot_{slot_num}"
+        if current_entity_id and current_entity_id != target_entity_id:
+            existing = ent_reg.async_get(target_entity_id)
+            if existing and existing.unique_id != unique_id:
+                ent_reg.async_remove(target_entity_id)
+            _LOGGER.info(
+                "Migrating switch entity ID from %s to %s",
+                current_entity_id,
+                target_entity_id,
+            )
+            ent_reg.async_update_entity(
+                current_entity_id,
+                new_entity_id=target_entity_id,
+                original_name=f"Slot {slot_num}",
+            )
 
     switches = [
         PassableLockSlotSwitch(engine, slot_num)
@@ -54,9 +75,7 @@ class PassableLockSlotSwitch(SwitchEntity):
     @property
     def name(self) -> str:
         """Return slot switch name."""
-        slot_data = self.engine.storage.get_slot(self.slot)
-        custom_name = slot_data.get("name", f"Slot {self.slot}")
-        return f"Lock Code {self.slot} ({custom_name})"
+        return f"Slot {self.slot}"
 
     @property
     def is_on(self) -> bool:
@@ -70,6 +89,7 @@ class PassableLockSlotSwitch(SwitchEntity):
         slot_data = self.engine.storage.get_slot(self.slot)
         return {
             "slot": self.slot,
+            "code_name": slot_data.get("name", ""),
             "guest_mode": slot_data.get("guest_mode", False),
             "schedule_enabled": slot_data.get("schedule_enabled", False),
             "timer_active": slot_data.get("timer_expires_at") is not None,
@@ -96,4 +116,4 @@ class PassableLockSlotSwitch(SwitchEntity):
     def _handle_slot_update(self, updated_slot: int) -> None:
         """Update entity state if this slot or all slots were modified."""
         if updated_slot in (0, self.slot):
-            self.async_write_ha_state()
+            self.schedule_update_ha_state()
