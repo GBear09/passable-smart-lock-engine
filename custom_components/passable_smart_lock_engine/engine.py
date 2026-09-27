@@ -514,9 +514,6 @@ class PassableLockEngine:
             is_guest,
         )
 
-        self.hass.bus.async_fire(EVENT_LOCK_ACCESS, self.last_activity)
-        async_dispatcher_send(self.hass, SIGNAL_ACTIVITY_UPDATED)
-
         # Directly activate Guest Mode helper if the slot has guest mode enabled
         if is_guest:
             guest_mode_entity = "input_boolean.guest_mode"
@@ -527,12 +524,21 @@ class PassableLockEngine:
                     actor,
                     guest_mode_entity,
                 )
-                await self.hass.services.async_call(
-                    "input_boolean",
-                    "turn_on",
-                    {"entity_id": guest_mode_entity},
-                    blocking=False,
-                )
+                try:
+                    await self.hass.services.async_call(
+                        "input_boolean",
+                        "turn_on",
+                        {"entity_id": guest_mode_entity},
+                        blocking=False,
+                    )
+                except Exception as err:
+                    _LOGGER.error("Failed to activate %s: %s", guest_mode_entity, err)
+
+        try:
+            self.hass.bus.async_fire(EVENT_LOCK_ACCESS, self.last_activity)
+            async_dispatcher_send(self.hass, SIGNAL_ACTIVITY_UPDATED)
+        except Exception as err:
+            _LOGGER.debug("Error dispatching activity update: %s", err)
 
     @callback
     def _async_handle_alarm_sensor_change(self, event: Event) -> None:

@@ -62,4 +62,4 @@ class PassableLockAccessEvent(EventEntity):
         method = activity.get("method", "keypad").lower()
         event_type = "biometric" if "biometric" in method else "keypad"
         self._trigger_event(event_type, activity)
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
