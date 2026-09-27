@@ -37,13 +37,28 @@ set_code:
       selector:
         boolean:
     duration:
-      name: Duration (Hours)
-      description: Hours for temporary access countdown.
+      name: Duration
+      description: Number of units for temporary access countdown.
       example: 4
       selector:
         number:
           min: 0
-          max: 72
+          max: 1440
+    duration_unit:
+      name: Duration Unit
+      description: Unit for duration ("minutes" or "hours").
+      default: "hours"
+      selector:
+        select:
+          options:
+            - "minutes"
+            - "hours"
+    is_timed:
+      name: Start Access Timer
+      description: Immediately activate duration countdown timer.
+      default: false
+      selector:
+        boolean:
     timer_action:
       name: Timer Action
       description: Action when access timer expires.

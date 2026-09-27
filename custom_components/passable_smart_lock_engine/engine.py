@@ -13,6 +13,7 @@ from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
     async_track_point_in_time,
+    async_track_state_change_event,
     async_track_time_change,
 )
 import homeassistant.util.dt as dt_util
@@ -54,6 +55,7 @@ class PassableLockEngine:
         self.storage = PassableLockStorage(hass)
         self._unsub_callbacks: list[CALLBACK_TYPE] = []
         self._timer_unsubs: dict[str, CALLBACK_TYPE] = {}
+        self._last_unlock_event: dict[str, Any] = {}
         self.last_activity: dict[str, Any] = {
             "door": "None",
             "actor": "None",
@@ -114,11 +116,33 @@ class PassableLockEngine:
         )
         self._unsub_callbacks.append(unsub_time)
 
+        # Schedule daily 3:00 AM lock code synchronization (replaces legacy package periodic sync)
+        unsub_daily = async_track_time_change(
+            self.hass, self._async_daily_sync, hour=3, minute=0, second=0
+        )
+        self._unsub_callbacks.append(unsub_daily)
+
+        # Track Yale / Z-Wave alarm level sensors for keypad & biometric unlocks
+        alarm_sensors: list[str] = []
+        for lock_id in self.locks:
+            name = lock_id.split(".", 1)[-1]
+            alarm_sensors.append(f"sensor.{name}_alarm_level")
+
+        if alarm_sensors:
+            unsub_alarm = async_track_state_change_event(
+                self.hass, alarm_sensors, self._async_handle_alarm_sensor_change
+            )
+            self._unsub_callbacks.append(unsub_alarm)
+
         # Listen for Z-Wave / Lock events to catch keypad/biometric unlocks
         unsub_event = self.hass.bus.async_listen(
             "zwave_js_notification", self._handle_zwave_notification
         )
         self._unsub_callbacks.append(unsub_event)
+        unsub_value_event = self.hass.bus.async_listen(
+            "zwave_js_value_notification", self._handle_zwave_notification
+        )
+        self._unsub_callbacks.append(unsub_value_event)
 
         # Initial schedule evaluation
         await self.async_evaluate_schedules()
@@ -153,6 +177,12 @@ class PassableLockEngine:
                     self._timer_unsubs[str(slot_key)] = unsub
             except Exception as err:
                 _LOGGER.error("Failed to restore timer for slot %s: %s", slot_key, err)
+
+    @callback
+    def _async_daily_sync(self, now: datetime) -> None:
+        """Periodic 3:00 AM maintenance sync across all configured locks."""
+        _LOGGER.info("Starting daily 3:00 AM lock code maintenance synchronization")
+        self.hass.async_create_task(self.async_sync_all_locks())
 
     @callback
     async def _async_scheduled_check(self, now: datetime) -> None:
@@ -422,6 +452,128 @@ class PassableLockEngine:
             "type": str(a_type),
         }
 
+    async def async_handle_unlock_event(
+        self,
+        door: str,
+        method: str,
+        slot: int | str,
+        alarm_type: str | None = None,
+    ) -> None:
+        """Process door unlock event, update activity, and auto-activate Guest Mode."""
+        now_ts = dt_util.utcnow().timestamp()
+        slot_str = str(slot).strip()
+        door_str = str(door).strip()
+
+        # Debounce: avoid duplicate processing within 3 seconds for the same door & slot
+        if (
+            self._last_unlock_event.get("slot") == slot_str
+            and self._last_unlock_event.get("door") == door_str
+            and (now_ts - self._last_unlock_event.get("time", 0)) < 3.0
+        ):
+            _LOGGER.debug(
+                "Debouncing duplicate unlock event for %s slot %s", door_str, slot_str
+            )
+            return
+
+        self._last_unlock_event = {
+            "slot": slot_str,
+            "door": door_str,
+            "time": now_ts,
+        }
+
+        is_biometric = method == "Fingerprint" or str(alarm_type) == "145"
+
+        if is_biometric:
+            method_name = "Fingerprint"
+            actor = self.biometric_mappings.get(slot_str, f"Family Member {slot_str}")
+            is_family = True
+            is_guest = False
+        else:
+            method_name = "Keypad"
+            slot_data = self.storage.get_slot(slot_str)
+            actor = slot_data.get("name") or f"Slot {slot_str}"
+            is_family = actor.lower() in ["family", "homeowner"]
+            is_guest = bool(slot_data.get("guest_mode", False))
+
+        self.last_activity = {
+            "door": door_str,
+            "actor": actor,
+            "method": method_name,
+            "slot": slot_str,
+            "timestamp": dt_util.now().isoformat(),
+            "is_family": is_family,
+            "is_guest": is_guest,
+        }
+
+        _LOGGER.info(
+            "Door unlock detected: %s on %s by %s (Slot %s, Guest Mode: %s)",
+            method_name,
+            door_str,
+            actor,
+            slot_str,
+            is_guest,
+        )
+
+        self.hass.bus.async_fire(EVENT_LOCK_ACCESS, self.last_activity)
+        async_dispatcher_send(self.hass, SIGNAL_ACTIVITY_UPDATED)
+
+        # Directly activate Guest Mode helper if the slot has guest mode enabled
+        if is_guest:
+            guest_mode_entity = "input_boolean.guest_mode"
+            if self.hass.states.get(guest_mode_entity):
+                _LOGGER.info(
+                    "Guest Mode code used (Slot %s: %s). Activating %s",
+                    slot_str,
+                    actor,
+                    guest_mode_entity,
+                )
+                await self.hass.services.async_call(
+                    "input_boolean",
+                    "turn_on",
+                    {"entity_id": guest_mode_entity},
+                    blocking=False,
+                )
+
+    @callback
+    def _async_handle_alarm_sensor_change(self, event: Event) -> None:
+        """Handle state change on sensor.*_alarm_level."""
+        new_state = event.data.get("new_state")
+        if not new_state or not new_state.state:
+            return
+
+        state_val = str(new_state.state).strip()
+        if not state_val.isdigit() or int(state_val) <= 0:
+            return
+
+        slot = int(state_val)
+        entity_id = event.data.get("entity_id", "")
+
+        type_sensor_id = entity_id.replace("_alarm_level", "_alarm_type")
+        type_state = self.hass.states.get(type_sensor_id)
+        alarm_type = type_state.state.strip() if type_state else ""
+
+        if alarm_type not in ["19", "145"]:
+            return
+
+        lock_entity_id = entity_id.replace("sensor.", "lock.").replace("_alarm_level", "")
+        lock_state = self.hass.states.get(lock_entity_id)
+        if lock_state and lock_state.attributes.get("friendly_name"):
+            door_name = lock_state.attributes["friendly_name"]
+        else:
+            raw_door = entity_id.split(".")[1].replace("_alarm_level", "")
+            door_name = raw_door.replace("_", " ").title()
+
+        method = "Fingerprint" if alarm_type == "145" else "Keypad"
+
+        self.hass.async_create_task(
+            self.async_handle_unlock_event(
+                door=door_name,
+                method=method,
+                slot=slot,
+                alarm_type=alarm_type,
+            )
+        )
+
     @callback
     def _handle_zwave_notification(self, event: Event) -> None:
         """Capture Z-Wave lock keypad / biometric notification events."""
@@ -431,22 +583,27 @@ class PassableLockEngine:
         event_label = data.get("event_label", "")
 
         if "Keypad unlock operation" in event_label or user_code_id:
-            slot = user_code_id or "1"
-            slot_data = self.storage.get_slot(slot)
-            name = slot_data.get("name", f"Slot {slot}")
-            door_name = data.get("node_id", "Door Lock")
+            try:
+                slot = int(user_code_id) if user_code_id else 1
+            except (ValueError, TypeError):
+                slot = 1
 
-            self.last_activity = {
-                "door": str(door_name),
-                "actor": name,
-                "method": "Keypad",
-                "slot": str(slot),
-                "timestamp": dt_util.now().isoformat(),
-                "is_family": name.lower() in ["family", "homeowner"],
-                "is_guest": slot_data.get("guest_mode", False),
-            }
-            self.hass.bus.async_fire(EVENT_LOCK_ACCESS, self.last_activity)
-            async_dispatcher_send(self.hass, SIGNAL_ACTIVITY_UPDATED)
+            node_id = data.get("node_id", "Door Lock")
+            door_name = str(node_id)
+            for lock_entity in self.locks:
+                st = self.hass.states.get(lock_entity)
+                if st and (st.attributes.get("node_id") == node_id):
+                    door_name = st.attributes.get("friendly_name", lock_entity)
+                    break
+
+            self.hass.async_create_task(
+                self.async_handle_unlock_event(
+                    door=door_name,
+                    method="Keypad",
+                    slot=slot,
+                    alarm_type="19",
+                )
+            )
 
     async def async_import_from_yaml_helpers(self) -> int:
         """Scan HA states for existing input_* helpers and import into .storage."""

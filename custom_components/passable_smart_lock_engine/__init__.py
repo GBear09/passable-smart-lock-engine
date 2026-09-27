@@ -7,8 +7,15 @@ from pathlib import Path
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import (
+    Event,
+    HomeAssistant,
+    ServiceCall,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 import voluptuous as vol
 
 from .const import (
@@ -26,7 +33,7 @@ from .const import (
     SERVICE_SET_CODE,
     SERVICE_SYNC_LOCKS,
 )
-from .engine import PassableLockEngine
+from .engine import PassableLockEngine, SIGNAL_SLOT_UPDATED
 from .websocket import async_register_websocket_api
 
 _LOGGER = logging.getLogger(__name__)
@@ -183,7 +190,11 @@ def _async_register_services(hass: HomeAssistant, engine: PassableLockEngine) ->
 
     async def handle_generate_pin(call: ServiceCall) -> dict[str, Any]:
         length = call.data.get("length", 6)
-        pin = engine.generate_random_pin(length=length)
+        code_slot = call.data.get("code_slot")
+        pin = engine.generate_random_pin(length=int(length))
+        if code_slot is not None:
+            await engine.storage.async_update_slot(int(code_slot), {"pin": pin})
+            async_dispatcher_send(hass, SIGNAL_SLOT_UPDATED, int(code_slot))
         return {"pin": pin}
 
     async def handle_import_helpers(call: ServiceCall) -> dict[str, Any]:
@@ -252,11 +263,48 @@ def _async_register_services(hass: HomeAssistant, engine: PassableLockEngine) ->
         DOMAIN,
         SERVICE_GET_USER_INFO,
         handle_get_user_info,
-        supports_response=SupportsResponse.ONLY,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
         DOMAIN, SERVICE_MANAGE_LOCK_CODES, handle_manage_lock_codes
     )
+
+    # Register compatibility services in 'script' domain so existing automations
+    # calling script.get_lock_user_info, script.manage_lock_codes, or script.generate_random_lock_code
+    # continue working smoothly without breaking if lock_code_manager.yaml is removed.
+    @callback
+    def _register_script_compatibility_services(event: Event | None = None) -> None:
+        """Register fallback compatibility services in the script domain."""
+        hass.services.async_register(
+            "script",
+            "get_lock_user_info",
+            handle_get_user_info,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+        hass.services.async_register(
+            "script",
+            "manage_lock_codes",
+            handle_manage_lock_codes,
+        )
+        hass.services.async_register(
+            "script",
+            "generate_random_lock_code",
+            handle_generate_pin,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+
+    _register_script_compatibility_services()
+
+    @callback
+    def _on_service_registered(event: Event) -> None:
+        """Re-ensure script compatibility if script domain services are re-registered."""
+        if event.data.get("domain") == "script" and event.data.get("service") in [
+            "reload",
+            "turn_on",
+        ]:
+            _register_script_compatibility_services()
+
+    hass.bus.async_listen("service_registered", _on_service_registered)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
