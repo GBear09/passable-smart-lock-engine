@@ -32,14 +32,14 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
         msg: dict[str, Any],
     ) -> None:
         """Handle request for all slots and lock configuration."""
-        reveal_pins = msg.get("reveal_pins", False) and connection.user.is_admin
+        reveal_pins = msg.get("reveal_pins", False) and connection.user is not None
 
         slots_dict = engine.storage.data.get("slots", {})
         processed_slots = {}
 
         for slot_id, slot_data in slots_dict.items():
             slot_copy = dict(slot_data)
-            # Mask PIN unless authenticated admin explicitly requests it
+            # Mask PIN unless authenticated user explicitly requests it
             if not reveal_pins and slot_copy.get("pin"):
                 slot_copy["pin"] = "••••"
             processed_slots[slot_id] = slot_copy
@@ -73,7 +73,6 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
         }
     )
     @websocket_api.async_response
-    @websocket_api.require_admin
     async def ws_save_slot(
         hass: HomeAssistant,
         connection: websocket_api.ActiveConnection,
@@ -104,7 +103,6 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
         }
     )
     @websocket_api.async_response
-    @websocket_api.require_admin
     async def ws_clear_slot(
         hass: HomeAssistant,
         connection: websocket_api.ActiveConnection,
@@ -143,7 +141,6 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
         }
     )
     @websocket_api.async_response
-    @websocket_api.require_admin
     async def ws_sync_locks(
         hass: HomeAssistant,
         connection: websocket_api.ActiveConnection,

@@ -4,7 +4,7 @@ import {
   css,
 } from "https://unpkg.com/lit@3.0.0/index.js?module";
 
-const CARD_VERSION = "2.2.1";
+const CARD_VERSION = "2.2.2";
 
 console.info(
   `%c PASSABLE-LOCK-MANAGER-CARD %c v${CARD_VERSION} `,
@@ -313,7 +313,6 @@ class PassableLockManagerCard extends LitElement {
       title: "Entry Door Locks & Access",
       subtitle: "Smart Lock Command Center",
       slots: 10,
-      manage_script: "script.manage_lock_codes",
       collapse_inactive_slots: true,
       show_lock_all: true,
       show_timeline: true,
@@ -343,6 +342,16 @@ class PassableLockManagerCard extends LitElement {
     _editingSlot: { state: true },
     _localName: { state: true },
     _localPin: { state: true },
+    _localEnabled: { state: true },
+    _localGuest: { state: true },
+    _localDuration: { state: true },
+    _localTimerAction: { state: true },
+    _localSchedEnabled: { state: true },
+    _localSchedDays: { state: true },
+    _localSchedStart: { state: true },
+    _localSchedEnd: { state: true },
+    _localIsTimed: { state: true },
+    _saveError: { state: true },
     _openSections: { state: true },
     _expandedInactive: { state: true },
     _expandedRecentActivity: { state: true },
@@ -360,6 +369,25 @@ class PassableLockManagerCard extends LitElement {
     this._editingSlot = null;
     this._localName = "";
     this._localPin = "";
+    this._localEnabled = true;
+    this._localGuest = false;
+    this._localDuration = 1;
+    this._localTimerAction = "Clear Code";
+    this._localSchedEnabled = false;
+    this._localSchedDays = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    this._localSchedStart = "00:00:00";
+    this._localSchedEnd = "23:59:59";
+    this._localIsTimed = false;
+    this._saveError = null;
+
     this._openSections = {};
     this._expandedInactive = false;
     this._expandedRecentActivity = false;
@@ -393,8 +421,9 @@ class PassableLockManagerCard extends LitElement {
     this._fetchEngineData();
     this._fetchActivityData();
     this._fetchTimer = setInterval(() => {
+      this._fetchEngineData();
       this._fetchActivityData();
-    }, 45000);
+    }, 30000);
   }
 
   disconnectedCallback() {
@@ -409,7 +438,7 @@ class PassableLockManagerCard extends LitElement {
     super.updated(changedProperties);
     if (changedProperties.has("hass") && this.hass) {
       const now = Date.now();
-      if (now - this._lastEngineFetch > 10000 || !this._engineData) {
+      if (now - this._lastEngineFetch > 5000 || !this._engineData) {
         this._fetchEngineData();
       }
       if (now - this._lastFetchTime > 30000) {
@@ -444,7 +473,6 @@ class PassableLockManagerCard extends LitElement {
       title: "Entry Door Locks & Access",
       subtitle: "Smart Lock Command Center",
       slots: 10,
-      manage_script: "script.manage_lock_codes",
       collapse_inactive_slots: true,
       show_lock_all: true,
       show_timeline: true,
@@ -461,10 +489,6 @@ class PassableLockManagerCard extends LitElement {
 
   async _fetchEngineData() {
     if (!this.hass) return;
-    if (this.config?.engine === "yaml") {
-      this._isNativeEngine = false;
-      return;
-    }
     this._lastEngineFetch = Date.now();
     try {
       const res = await this.hass.connection.sendMessagePromise({
@@ -494,34 +518,23 @@ class PassableLockManagerCard extends LitElement {
     }
   }
 
-  // --- STATE EXTRACTORS ---
+  // --- STATE & SLOT EXTRACTORS ---
   _getEntity(entityId) {
     return this.hass?.states[entityId];
   }
 
   _getState(entityId, defaultVal = "") {
-    if (this._isNativeEngine && this._engineData?.slots) {
-      const slotMatch = entityId.match(/_(\d+)$/);
-      if (slotMatch) {
-        const slotStr = slotMatch[1];
-        const slotData = this._engineData.slots[slotStr];
-        if (slotData) {
-          if (entityId.includes("lock_code_name_")) return slotData.name || "";
-          if (entityId.includes("lock_code_pin_")) return slotData.pin || "";
-          if (entityId.includes("lock_code_enabled_")) return slotData.enabled ? "on" : "off";
-          if (entityId.includes("guest_mode_enabled_")) return slotData.guest_mode ? "on" : "off";
-          if (entityId.includes("lock_code_duration_")) return (slotData.duration || 1).toString();
-          if (entityId.includes("lock_timer_action_") || entityId.includes("lock_code_action_")) return slotData.timer_action || "Clear Code";
-          if (entityId.includes("lock_code_timer_")) return slotData.timer_expires_at ? "active" : "idle";
-          if (entityId.includes("lock_schedule_enabled_")) return slotData.schedule_enabled ? "on" : "off";
-          if (entityId.includes("lock_schedule_days_")) return (slotData.schedule_days || []).join(",");
-          if (entityId.includes("lock_schedule_start_time_")) return slotData.schedule_start || "00:00:00";
-          if (entityId.includes("lock_schedule_end_time_")) return slotData.schedule_end || "23:59:59";
-        }
-      }
-    }
     const ent = this._getEntity(entityId);
     return ent ? ent.state : defaultVal;
+  }
+
+  _getSlotData(slot) {
+    if (!this._engineData?.slots) return null;
+    return (
+      this._engineData.slots[slot] ||
+      this._engineData.slots[String(slot)] ||
+      null
+    );
   }
 
   // --- TIMESTAMP & STATE NORMALIZERS ---
@@ -743,7 +756,8 @@ class PassableLockManagerCard extends LitElement {
 
       if (slotMatch && slotMatch[1]) {
         const slotNum = parseInt(slotMatch[1], 10);
-        const slotName = this._getState(`input_text.lock_code_name_${slotNum}`);
+        const slotData = this._getSlotData(slotNum);
+        const slotName = slotData?.name;
         if (slotName) {
           actor = `${slotName} (Slot #${slotNum})`;
         } else {
@@ -1090,62 +1104,87 @@ class PassableLockManagerCard extends LitElement {
   _openEdit(slot) {
     if (!this._canManagePins()) return;
     this._editingSlot = slot;
-    this._localName = this._getState(`input_text.lock_code_name_${slot}`);
-    this._localPin = this._getState(`input_text.lock_code_pin_${slot}`);
+    this._saveError = null;
+    const slotData = this._getSlotData(slot) || {};
+    this._localName = slotData.name || "";
+    this._localPin = slotData.pin || "";
+    this._localEnabled =
+      slotData.enabled !== undefined ? Boolean(slotData.enabled) : true;
+    this._localGuest = Boolean(slotData.guest_mode);
+    this._localDuration = slotData.duration || 1;
+    this._localTimerAction = slotData.timer_action || "Clear Code";
+    this._localSchedEnabled = Boolean(slotData.schedule_enabled);
+    this._localSchedDays =
+      Array.isArray(slotData.schedule_days) && slotData.schedule_days.length > 0
+        ? [...slotData.schedule_days]
+        : [...this._fullDaysList];
+    this._localSchedStart = slotData.schedule_start || "00:00:00";
+    this._localSchedEnd = slotData.schedule_end || "23:59:59";
+    this._localIsTimed = Boolean(slotData.is_timed);
   }
 
   _closeEdit() {
     this._editingSlot = null;
+    this._saveError = null;
   }
 
-  async _handleSave() {
+  async _handleSave(isTimed = null) {
     const slot = this._editingSlot;
-    if (this._isNativeEngine) {
-      try {
-        const slotData = this._engineData?.slots?.[slot] || {};
-        await this.hass.connection.sendMessagePromise({
-          type: "passable_smart_lock_engine/save_slot",
-          slot: parseInt(slot, 10),
-          pin: this._localPin,
-          name: this._localName,
-          enabled: slotData.enabled !== undefined ? slotData.enabled : true,
-          guest_mode: slotData.guest_mode || false,
-          duration: slotData.duration || 1,
-          timer_action: slotData.timer_action || "Clear Code",
-          schedule_enabled: slotData.schedule_enabled || false,
-          schedule_days: slotData.schedule_days || this._fullDaysList,
-          schedule_start: slotData.schedule_start || "00:00:00",
-          schedule_end: slotData.schedule_end || "23:59:59",
-          is_timed: slotData.is_timed || false,
-        });
-        if (this._engineData?.slots && this._engineData.slots[slot]) {
-          this._engineData.slots[slot].name = this._localName;
-          this._engineData.slots[slot].pin = this._localPin;
-        }
-        this._closeEdit();
-        this.requestUpdate();
-        return;
-      } catch (err) {
-        console.warn("Native save fallback:", err);
-      }
-    }
-    const scriptEntity =
-      this.config?.manage_script || "script.manage_lock_codes";
-    const [domain, service] = scriptEntity.split(".");
+    if (!slot) return;
+    this._saveError = null;
 
-    this._callService("input_text", "set_value", {
-      entity_id: `input_text.lock_code_name_${slot}`,
-      value: this._localName,
-    });
-    this._callService("input_text", "set_value", {
-      entity_id: `input_text.lock_code_pin_${slot}`,
-      value: this._localPin,
-    });
-    this._callService(domain || "script", service || "manage_lock_codes", {
-      action: "set",
-      code_slot: slot.toString(),
-    });
-    this._closeEdit();
+    if (isTimed !== null) {
+      this._localIsTimed = Boolean(isTimed);
+    }
+
+    try {
+      await this.hass.connection.sendMessagePromise({
+        type: "passable_smart_lock_engine/save_slot",
+        slot: parseInt(slot, 10),
+        pin: this._localPin || "",
+        name: this._localName || `Slot ${slot}`,
+        enabled: Boolean(this._localEnabled),
+        guest_mode: Boolean(this._localGuest),
+        duration: parseInt(this._localDuration, 10) || 1,
+        timer_action: this._localTimerAction || "Clear Code",
+        schedule_enabled: Boolean(this._localSchedEnabled),
+        schedule_days: this._localSchedDays || this._fullDaysList,
+        schedule_start: this._localSchedStart || "00:00:00",
+        schedule_end: this._localSchedEnd || "23:59:59",
+        is_timed: Boolean(this._localIsTimed),
+      });
+
+      if (!this._engineData) {
+        this._engineData = { slots: {} };
+      }
+      if (!this._engineData.slots) {
+        this._engineData.slots = {};
+      }
+      this._engineData.slots[slot] = {
+        ...(this._engineData.slots[slot] || {}),
+        slot: parseInt(slot, 10),
+        name: this._localName || `Slot ${slot}`,
+        pin: this._localPin || "",
+        enabled: Boolean(this._localEnabled),
+        guest_mode: Boolean(this._localGuest),
+        duration: parseInt(this._localDuration, 10) || 1,
+        timer_action: this._localTimerAction || "Clear Code",
+        schedule_enabled: Boolean(this._localSchedEnabled),
+        schedule_days: this._localSchedDays || this._fullDaysList,
+        schedule_start: this._localSchedStart || "00:00:00",
+        schedule_end: this._localSchedEnd || "23:59:59",
+        is_timed: Boolean(this._localIsTimed),
+      };
+
+      this._closeEdit();
+      await this._fetchEngineData();
+      this.requestUpdate();
+    } catch (err) {
+      console.error("Passable Lock Engine: Save slot error:", err);
+      this._saveError =
+        err?.message || "Failed to save slot. Check Home Assistant logs.";
+      this.requestUpdate();
+    }
   }
 
   _handleGenerate() {
@@ -1158,87 +1197,43 @@ class PassableLockManagerCard extends LitElement {
 
   async _handleClear() {
     const slot = this._editingSlot;
-    const scriptEntity =
-      this.config?.manage_script || "script.manage_lock_codes";
-    const [domain, service] = scriptEntity.split(".");
+    if (!slot) return;
 
     if (confirm(`Delete code slot ${slot}?`)) {
-      if (this._isNativeEngine) {
-        try {
-          await this.hass.connection.sendMessagePromise({
-            type: "passable_smart_lock_engine/clear_slot",
-            slot: parseInt(slot, 10),
-          });
-          if (this._engineData?.slots && this._engineData.slots[slot]) {
-            this._engineData.slots[slot].name = "";
-            this._engineData.slots[slot].pin = "";
-            this._engineData.slots[slot].enabled = false;
-          }
-          this._closeEdit();
-          this.requestUpdate();
-          return;
-        } catch (err) {
-          console.warn("Native clear fallback:", err);
+      this._saveError = null;
+      try {
+        await this.hass.connection.sendMessagePromise({
+          type: "passable_smart_lock_engine/clear_slot",
+          slot: parseInt(slot, 10),
+        });
+        if (this._engineData?.slots && this._engineData.slots[slot]) {
+          this._engineData.slots[slot].name = "";
+          this._engineData.slots[slot].pin = "";
+          this._engineData.slots[slot].enabled = false;
+          this._engineData.slots[slot].guest_mode = false;
+          this._engineData.slots[slot].timer_expires_at = null;
         }
+        this._closeEdit();
+        await this._fetchEngineData();
+        this.requestUpdate();
+      } catch (err) {
+        console.error("Passable Lock Engine: Clear slot error:", err);
+        this._saveError = err?.message || "Failed to clear slot.";
+        this.requestUpdate();
       }
-      this._callService("input_text", "set_value", {
-        entity_id: `input_text.lock_code_name_${slot}`,
-        value: "",
-      });
-      this._callService("input_text", "set_value", {
-        entity_id: `input_text.lock_code_pin_${slot}`,
-        value: "",
-      });
-      this._callService("input_boolean", "turn_off", {
-        entity_id: `input_boolean.lock_code_enabled_${slot}`,
-      });
-      this._callService(domain || "script", service || "manage_lock_codes", {
-        action: "clear",
-        code_slot: slot.toString(),
-      });
-      this._closeEdit();
     }
   }
 
-  async _toggleBoolean(entityId) {
-    if (this._isNativeEngine) {
-      const match = entityId.match(/_(\d+)$/);
-      if (match) {
-        const slot = parseInt(match[1], 10);
-        const slotData = this._engineData?.slots?.[slot];
-        if (slotData) {
-          if (entityId.includes("lock_code_enabled_")) {
-            const newState = !slotData.enabled;
-            try {
-              await this.hass.connection.sendMessagePromise({
-                type: "passable_smart_lock_engine/toggle_slot",
-                slot: slot,
-                enabled: newState,
-              });
-              slotData.enabled = newState;
-              this.requestUpdate();
-              return;
-            } catch (err) {
-              console.warn("Native toggle fallback:", err);
-            }
-          } else if (entityId.includes("guest_mode_enabled_")) {
-            slotData.guest_mode = !slotData.guest_mode;
-            this.requestUpdate();
-            return;
-          } else if (entityId.includes("lock_schedule_enabled_")) {
-            slotData.schedule_enabled = !slotData.schedule_enabled;
-            this.requestUpdate();
-            return;
-          }
-        }
-      }
+  async _handleSyncLocks() {
+    try {
+      await this.hass.connection.sendMessagePromise({
+        type: "passable_smart_lock_engine/sync_locks",
+      });
+      await this._fetchEngineData();
+      this.requestUpdate();
+    } catch (err) {
+      console.error("Passable Lock Engine: Sync error:", err);
     }
-    const state = this._getState(entityId);
-    this._callService(
-      "input_boolean",
-      state === "on" ? "turn_off" : "turn_on",
-      { entity_id: entityId }
-    );
   }
 
   _toggleSection(section) {
@@ -1249,37 +1244,10 @@ class PassableLockManagerCard extends LitElement {
   }
 
   _toggleDay(day) {
-    const slot = this._editingSlot;
-    const schedEnabledEntId = `input_boolean.lock_schedule_enabled_${slot}`;
-    const isSchedEnabled = this._getState(schedEnabledEntId) === "on";
-
-    if (!isSchedEnabled) return;
-
-    if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
-      const slotData = this._engineData.slots[slot];
-      let selectedDays = Array.isArray(slotData.schedule_days)
-        ? [...slotData.schedule_days]
-        : [...this._fullDaysList];
-      if (selectedDays.includes(day)) {
-        selectedDays = selectedDays.filter((d) => d !== day);
-      } else {
-        selectedDays.push(day);
-        selectedDays.sort(
-          (a, b) => this._fullDaysList.indexOf(a) - this._fullDaysList.indexOf(b)
-        );
-      }
-      slotData.schedule_days = selectedDays;
-      this.requestUpdate();
-      return;
-    }
-
-    const schedDaysEntId = `input_text.lock_schedule_days_${slot}`;
-    const currentStr = this._getState(
-      schedDaysEntId,
-      "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday"
-    );
-    let selectedDays = currentStr ? currentStr.split(",") : [];
-
+    if (!this._localSchedEnabled) return;
+    let selectedDays = Array.isArray(this._localSchedDays)
+      ? [...this._localSchedDays]
+      : [...this._fullDaysList];
     if (selectedDays.includes(day)) {
       selectedDays = selectedDays.filter((d) => d !== day);
     } else {
@@ -1288,10 +1256,8 @@ class PassableLockManagerCard extends LitElement {
         (a, b) => this._fullDaysList.indexOf(a) - this._fullDaysList.indexOf(b)
       );
     }
-    this._callService("input_text", "set_value", {
-      entity_id: schedDaysEntId,
-      value: selectedDays.join(","),
-    });
+    this._localSchedDays = selectedDays;
+    this.requestUpdate();
   }
 
   // --- MAIN RENDER ---
@@ -1329,19 +1295,13 @@ class PassableLockManagerCard extends LitElement {
     });
 
     const totalSlots =
+      this._engineData?.slots_count ||
       this.config?.slots ||
-      (this._isNativeEngine && this._engineData?.slots_count) ||
       10;
     let activeSlots = 0;
-    if (this._isNativeEngine && this._engineData?.slots) {
+    if (this._engineData?.slots) {
       activeSlots = Object.values(this._engineData.slots).filter(
         (s) => s && s.enabled
-      ).length;
-    } else {
-      activeSlots = Object.keys(this.hass.states).filter(
-        (k) =>
-          k.startsWith("input_boolean.lock_code_enabled_") &&
-          this.hass.states[k].state === "on"
       ).length;
     }
 
@@ -1355,8 +1315,8 @@ class PassableLockManagerCard extends LitElement {
             <h1 class="title">${title}</h1>
             <p class="subtitle">
               ${subtitle}
-              <span class="engine-badge ${this._isNativeEngine ? "native" : "yaml"}">
-                ${this._isNativeEngine ? "● Native Engine" : "● YAML Helpers"}
+              <span class="engine-badge ${this._isNativeEngine ? "native" : "offline"}">
+                ${this._isNativeEngine ? "● Native Engine" : "● Engine Offline"}
               </span>
             </p>
           </div>
@@ -1735,10 +1695,10 @@ class PassableLockManagerCard extends LitElement {
     const inactiveSlotIndices = [];
 
     allSlotIndices.forEach((slot) => {
-      const enabled =
-        this._getState(`input_boolean.lock_code_enabled_${slot}`) === "on";
-      const timer = this._getState(`timer.lock_code_timer_${slot}`, "idle");
-      if (enabled || timer === "active") {
+      const slotData = this._getSlotData(slot);
+      const enabled = slotData ? Boolean(slotData.enabled) : false;
+      const timerActive = slotData ? Boolean(slotData.timer_expires_at) : false;
+      if (enabled || timerActive) {
         activeSlotIndices.push(slot);
       } else {
         inactiveSlotIndices.push(slot);
@@ -1758,8 +1718,17 @@ class PassableLockManagerCard extends LitElement {
       <div class="slots-section">
         <div class="section-label-row">
           <span class="section-label-text">PIN Code & Guest Access</span>
-          <div class="slots-badge-counter">
-            ${activeSlots}<span class="divider">/</span>${totalSlots} Active
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button
+              class="sync-btn"
+              @click=${this._handleSyncLocks}
+              title="Sync active codes across all locks"
+            >
+              ${Icons.RefreshCw} Sync Locks
+            </button>
+            <div class="slots-badge-counter">
+              ${activeSlots}<span class="divider">/</span>${totalSlots} Active
+            </div>
           </div>
         </div>
 
@@ -1790,15 +1759,12 @@ class PassableLockManagerCard extends LitElement {
   }
 
   _renderSlotCard(slot, index) {
-    const name = this._getState(`input_text.lock_code_name_${slot}`);
-    const pin = this._getState(`input_text.lock_code_pin_${slot}`);
-    const enabled =
-      this._getState(`input_boolean.lock_code_enabled_${slot}`) === "on";
-    const guest = this._getState(
-      `input_boolean.lock_guest_mode_enabled_${slot}`,
-      "off"
-    );
-    const timer = this._getState(`timer.lock_code_timer_${slot}`, "idle");
+    const slotData = this._getSlotData(slot) || {};
+    const name = slotData.name || "";
+    const pin = slotData.pin || "";
+    const enabled = Boolean(slotData.enabled);
+    const guest = Boolean(slotData.guest_mode);
+    const timerActive = Boolean(slotData.timer_expires_at);
     const isConfigured = (name && name.length > 0) || (pin && pin.length > 0);
 
     return html`
@@ -1828,10 +1794,10 @@ class PassableLockManagerCard extends LitElement {
               >`
             : html`
                 <span class="badge success">Active</span>
-                ${guest === "on"
+                ${guest
                   ? html`<span class="badge warning">${Icons.User} Guest</span>`
                   : ""}
-                ${timer === "active"
+                ${timerActive
                   ? html`<span class="badge info">${Icons.Clock} Timer</span>`
                   : ""}
               `}
@@ -1843,36 +1809,8 @@ class PassableLockManagerCard extends LitElement {
   // --- EDIT MODAL VIEW ---
   _renderEdit() {
     const slot = this._editingSlot;
-
-    const enabledEntId = `input_boolean.lock_code_enabled_${slot}`;
-    const guestEntId = `input_boolean.lock_guest_mode_enabled_${slot}`;
-    const durationEntId = `input_number.lock_code_duration_${slot}`;
-    const timerActionEntId = `input_select.lock_timer_action_${slot}`;
-    const timerStateEntId = `timer.lock_code_timer_${slot}`;
-    const schedEnabledEntId = `input_boolean.lock_schedule_enabled_${slot}`;
-    const schedStartEntId = `input_datetime.lock_schedule_start_time_${slot}`;
-    const schedEndEntId = `input_datetime.lock_schedule_end_time_${slot}`;
-
-    const isEnabled = this._getState(enabledEntId) === "on";
-    const isGuest = this._getState(guestEntId) === "on";
-    const isSchedEnabled = this._getState(schedEnabledEntId) === "on";
-    const timerState = this._getState(timerStateEntId);
-
-    const schedDaysStr = this._getState(
-      `input_text.lock_schedule_days_${slot}`,
-      "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday"
-    );
-    const selectedDays = schedDaysStr ? schedDaysStr.split(",") : [];
-
-    const timerOpts =
-      this._getEntity(timerActionEntId)?.attributes?.options || [
-        "Clear Code",
-        "Disable Code",
-      ];
-
-    const scriptEntity =
-      this.config?.manage_script || "script.manage_lock_codes";
-    const [domain, service] = scriptEntity.split(".");
+    const slotData = this._getSlotData(slot) || {};
+    const isTimerActive = Boolean(slotData?.timer_expires_at);
 
     return html`
       <div class="view fade-in">
@@ -1884,12 +1822,21 @@ class PassableLockManagerCard extends LitElement {
             <div class="icon-box active circle">${slot}</div>
             <div style="text-align: right">
               <h2 class="edit-title">Slot ${slot}</h2>
-              <span class="edit-status ${isEnabled ? "success" : ""}">
-                ${isEnabled ? "Active" : "Disabled"}
+              <span class="edit-status ${this._localEnabled ? "success" : ""}">
+                ${this._localEnabled ? "Active" : "Disabled"}
               </span>
             </div>
           </div>
         </div>
+
+        ${this._saveError
+          ? html`<div
+              class="error-banner"
+              style="background: rgba(244,67,54,0.15); color: #f44336; border: 1px solid rgba(244,67,54,0.3); padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 13px;"
+            >
+              ${this._saveError}
+            </div>`
+          : ""}
 
         <div class="edit-body">
           <!-- Name Input -->
@@ -1916,10 +1863,14 @@ class PassableLockManagerCard extends LitElement {
                   class="custom-input pin-input"
                   .value=${this._localPin}
                   @input=${(e) => (this._localPin = e.target.value)}
-                  placeholder="••••"
+                  placeholder="PIN digits"
                 />
               </div>
-              <button class="icon-button" @click=${this._handleGenerate}>
+              <button
+                class="icon-button"
+                @click=${this._handleGenerate}
+                title="Generate random PIN"
+              >
                 ${Icons.RefreshCw}
               </button>
             </div>
@@ -1929,33 +1880,33 @@ class PassableLockManagerCard extends LitElement {
           <div class="settings-list">
             <div
               class="toggle-row"
-              @click=${() => this._toggleBoolean(enabledEntId)}
+              @click=${() => (this._localEnabled = !this._localEnabled)}
             >
               <div class="toggle-info">
                 <div
-                  style="color: ${isEnabled
+                  style="color: ${this._localEnabled
                     ? "var(--primary-color)"
                     : "var(--secondary-text-color)"}"
                 >
-                  ${isEnabled ? Icons.Unlock : Icons.Lock}
+                  ${this._localEnabled ? Icons.Unlock : Icons.Lock}
                 </div>
                 <div>
                   <div class="toggle-title">Enable Slot</div>
                   <div class="toggle-desc">Allow this code to operate lock</div>
                 </div>
               </div>
-              <div class="toggle-switch ${isEnabled ? "active" : ""}">
-                <div class="toggle-knob ${isEnabled ? "active" : ""}"></div>
+              <div class="toggle-switch ${this._localEnabled ? "active" : ""}">
+                <div class="toggle-knob ${this._localEnabled ? "active" : ""}"></div>
               </div>
             </div>
 
             <div
               class="toggle-row no-border"
-              @click=${() => this._toggleBoolean(guestEntId)}
+              @click=${() => (this._localGuest = !this._localGuest)}
             >
               <div class="toggle-info">
                 <div
-                  style="color: ${isGuest
+                  style="color: ${this._localGuest
                     ? "var(--warning-color, #ff9800)"
                     : "var(--secondary-text-color)"}"
                 >
@@ -1968,8 +1919,8 @@ class PassableLockManagerCard extends LitElement {
                   </div>
                 </div>
               </div>
-              <div class="toggle-switch ${isGuest ? "active" : ""}">
-                <div class="toggle-knob ${isGuest ? "active" : ""}"></div>
+              <div class="toggle-switch ${this._localGuest ? "active" : ""}">
+                <div class="toggle-knob ${this._localGuest ? "active" : ""}"></div>
               </div>
             </div>
           </div>
@@ -1985,72 +1936,50 @@ class PassableLockManagerCard extends LitElement {
                   <label class="input-label">Duration (Hours)</label>
                   <input
                     type="number"
+                    min="1"
                     class="custom-input"
-                    .value=${this._getState(durationEntId)}
-                    @change=${(e) => {
-                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
-                        this._engineData.slots[slot].duration = parseInt(e.target.value, 10);
-                      }
-                      this._callService("input_number", "set_value", {
-                        entity_id: durationEntId,
-                        value: e.target.value,
-                      });
-                    }}
+                    .value=${this._localDuration}
+                    @input=${(e) =>
+                      (this._localDuration =
+                        parseInt(e.target.value, 10) || 1)}
                   />
                 </div>
                 <div class="input-group">
                   <label class="input-label">Action</label>
                   <select
                     class="custom-select"
-                    .value=${this._getState(timerActionEntId)}
-                    @change=${(e) => {
-                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
-                        this._engineData.slots[slot].timer_action = e.target.value;
-                      }
-                      this._callService("input_select", "select_option", {
-                        entity_id: timerActionEntId,
-                        option: e.target.value,
-                      });
-                    }}
+                    .value=${this._localTimerAction}
+                    @change=${(e) =>
+                      (this._localTimerAction = e.target.value)}
                   >
-                    ${timerOpts.map(
-                      (opt) => html`<option value="${opt}">${opt}</option>`
-                    )}
+                    <option value="Clear Code">Clear Code</option>
+                    <option value="Disable Code">Disable Code</option>
                   </select>
                 </div>
               </div>
-              <button
-                class="button-outline"
-                style="margin-top: 16px;"
-                @click=${() => {
-                  if (this._isNativeEngine) {
-                    this._callService(
-                      "passable_smart_lock_engine",
-                      "manage_lock_codes",
-                      {
-                        action: "set_timed",
-                        code_slot: slot.toString(),
-                      }
-                    );
-                    return;
-                  }
-                  this._callService(
-                    domain || "script",
-                    service || "manage_lock_codes",
-                    {
-                      action: "set_timed",
-                      code_slot: slot.toString(),
-                    }
-                  );
-                }}
-              >
-                ${Icons.Play}
-                <span style="margin-left:8px"
-                  >${timerState === "active"
-                    ? "Timer Active"
-                    : "Start Timer"}</span
+              <div style="display: flex; gap: 10px; margin-top: 16px;">
+                <button
+                  class="button-outline"
+                  style="flex: 1;"
+                  @click=${() => this._handleSave(true)}
                 >
-              </button>
+                  ${Icons.Play}
+                  <span style="margin-left:8px"
+                    >${isTimerActive ? "Restart Timer" : "Start Timer"}</span
+                  >
+                </button>
+                ${isTimerActive
+                  ? html`
+                      <button
+                        class="button-outline"
+                        style="color: var(--error-color, #f44336); border-color: rgba(244,67,54,0.4);"
+                        @click=${() => this._handleSave(false)}
+                      >
+                        Cancel Timer
+                      </button>
+                    `
+                  : ""}
+              </div>
             `
           )}
 
@@ -2062,12 +1991,15 @@ class PassableLockManagerCard extends LitElement {
             html`
               <div
                 class="toggle-row no-border no-pad"
-                @click=${() => this._toggleBoolean(schedEnabledEntId)}
+                @click=${() =>
+                  (this._localSchedEnabled = !this._localSchedEnabled)}
               >
                 <div class="toggle-title">Enable Schedule</div>
-                <div class="toggle-switch ${isSchedEnabled ? "active" : ""}">
+                <div
+                  class="toggle-switch ${this._localSchedEnabled ? "active" : ""}"
+                >
                   <div
-                    class="toggle-knob ${isSchedEnabled ? "active" : ""}"
+                    class="toggle-knob ${this._localSchedEnabled ? "active" : ""}"
                   ></div>
                 </div>
               </div>
@@ -2076,10 +2008,10 @@ class PassableLockManagerCard extends LitElement {
                 <label class="input-label">Active Days</label>
                 <div
                   class="day-chips"
-                  style="opacity: ${isSchedEnabled ? "1" : "0.5"}"
+                  style="opacity: ${this._localSchedEnabled ? "1" : "0.5"}"
                 >
                   ${this._fullDaysList.map((day, idx) => {
-                    const isSel = selectedDays.includes(day);
+                    const isSel = (this._localSchedDays || []).includes(day);
                     return html`
                       <div
                         class="day-chip ${isSel ? "selected" : ""}"
@@ -2098,17 +2030,9 @@ class PassableLockManagerCard extends LitElement {
                   <input
                     type="time"
                     class="custom-input time-input"
-                    .value=${this._getState(schedStartEntId).slice(0, 5)}
-                    @change=${(e) => {
-                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
-                        this._engineData.slots[slot].schedule_start = e.target.value;
-                      }
-                      this._callService("input_datetime", "set_datetime", {
-                        entity_id: schedStartEntId,
-                        time: e.target.value,
-                      });
-                    }}
-                    ?disabled=${!isSchedEnabled}
+                    .value=${(this._localSchedStart || "00:00").slice(0, 5)}
+                    @change=${(e) => (this._localSchedStart = e.target.value)}
+                    ?disabled=${!this._localSchedEnabled}
                   />
                 </div>
                 <div class="input-group">
@@ -2116,17 +2040,9 @@ class PassableLockManagerCard extends LitElement {
                   <input
                     type="time"
                     class="custom-input time-input"
-                    .value=${this._getState(schedEndEntId).slice(0, 5)}
-                    @change=${(e) => {
-                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
-                        this._engineData.slots[slot].schedule_end = e.target.value;
-                      }
-                      this._callService("input_datetime", "set_datetime", {
-                        entity_id: schedEndEntId,
-                        time: e.target.value,
-                      });
-                    }}
-                    ?disabled=${!isSchedEnabled}
+                    .value=${(this._localSchedEnd || "23:59").slice(0, 5)}
+                    @change=${(e) => (this._localSchedEnd = e.target.value)}
+                    ?disabled=${!this._localSchedEnabled}
                   />
                 </div>
               </div>
@@ -2138,7 +2054,10 @@ class PassableLockManagerCard extends LitElement {
           <button class="button-danger" @click=${this._handleClear}>
             ${Icons.Trash2} Delete
           </button>
-          <button class="button-primary" @click=${this._handleSave}>
+          <button
+            class="button-primary"
+            @click=${() => this._handleSave(this._localIsTimed)}
+          >
             ${Icons.Save} Save
           </button>
         </div>
@@ -2984,10 +2903,28 @@ class PassableLockManagerCard extends LitElement {
         color: #10b981;
         border: 1px solid rgba(16, 185, 129, 0.3);
       }
-      .engine-badge.yaml {
-        background: rgba(245, 158, 11, 0.15);
-        color: #f59e0b;
-        border: 1px solid rgba(245, 158, 11, 0.3);
+      .engine-badge.offline {
+        background: rgba(244, 67, 54, 0.15);
+        color: #f44336;
+        border: 1px solid rgba(244, 67, 54, 0.3);
+      }
+      .sync-btn {
+        background: transparent;
+        color: var(--secondary-text-color, #757575);
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.15));
+        border-radius: 12px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .sync-btn:hover {
+        color: var(--primary-color, #2196f3);
+        border-color: var(--primary-color, #2196f3);
       }
 
       /* Edit View Styles */
@@ -3889,15 +3826,6 @@ class PassableLockManagerCardEditor extends LitElement {
               .label=${"Total Code Slots"}
               @value-changed=${(e) =>
                 this._updateConfigValue("slots", e.detail.value)}
-            ></ha-selector>
-
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ entity: { domain: "script" } }}
-              .value=${this._config.manage_script || "script.manage_lock_codes"}
-              .label=${"Manage Lock Codes Backend Script"}
-              @value-changed=${(e) =>
-                this._updateConfigValue("manage_script", e.detail.value)}
             ></ha-selector>
           </div>
         </div>
