@@ -99,7 +99,13 @@ class PassableLockOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        super().__init__()
+        self._config_entry = config_entry
+
+    @property
+    def config_entry(self) -> config_entries.ConfigEntry:
+        """Return the config entry."""
+        return self._config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -127,17 +133,21 @@ class PassableLockOptionsFlowHandler(config_entries.OptionsFlow):
 
             return self.async_create_entry(title="", data=options_data)
 
-        current_locks = self.config_entry.options.get(
+        current_locks = list(self.config_entry.options.get(
             CONF_LOCKS, self.config_entry.data.get(CONF_LOCKS, [])
-        )
-        current_slots = self.config_entry.options.get(
-            CONF_SLOTS_COUNT,
-            self.config_entry.data.get(CONF_SLOTS_COUNT, DEFAULT_SLOTS_COUNT),
-        )
-        current_biometrics = self.config_entry.options.get(
+        ))
+        try:
+            current_slots = int(float(self.config_entry.options.get(
+                CONF_SLOTS_COUNT,
+                self.config_entry.data.get(CONF_SLOTS_COUNT, DEFAULT_SLOTS_COUNT),
+            )))
+        except (ValueError, TypeError):
+            current_slots = DEFAULT_SLOTS_COUNT
+
+        current_biometrics = dict(self.config_entry.options.get(
             CONF_BIOMETRIC_MAPPINGS,
             self.config_entry.data.get(CONF_BIOMETRIC_MAPPINGS, {}),
-        )
+        ))
 
         schema = vol.Schema(
             {
