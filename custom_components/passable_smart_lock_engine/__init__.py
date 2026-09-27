@@ -32,34 +32,46 @@ from .websocket import async_register_websocket_api
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
-    """Set up the Passable Smart Lock Engine component and register static frontend resources."""
+async def _async_register_frontend(hass: HomeAssistant) -> None:
+    """Register static frontend paths and Lovelace card resource."""
+    if hass.data.setdefault(DOMAIN, {}).get("frontend_registered"):
+        return
+
     card_path = Path(__file__).parent / "frontend" / "passable-lock-manager-card.js"
+    if not card_path.is_file():
+        _LOGGER.warning("Passable Lock Manager Card file not found at %s", card_path)
+        return
 
-    if card_path.is_file():
+    try:
+        from homeassistant.components.http import StaticPathConfig
+
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(FRONTEND_URL_PATH, str(card_path), cache_headers=False)]
+        )
+        hass.data[DOMAIN]["frontend_registered"] = True
+        _LOGGER.info("Passable Lock Manager Card registered at %s", FRONTEND_URL_PATH)
+    except Exception as err:
+        _LOGGER.debug(
+            "Static path registration exception (falling back to legacy): %s", err
+        )
         try:
-            from homeassistant.components.http import StaticPathConfig
-
-            await hass.http.async_register_static_paths(
-                [StaticPathConfig(FRONTEND_URL_PATH, str(card_path), cache_headers=False)]
+            hass.http.register_static_path(
+                FRONTEND_URL_PATH, str(card_path), cache_headers=False
             )
+            hass.data[DOMAIN]["frontend_registered"] = True
             _LOGGER.info(
-                "Passable Lock Manager Card registered at %s", FRONTEND_URL_PATH
+                "Passable Lock Manager Card registered at %s (legacy)", FRONTEND_URL_PATH
             )
-        except Exception as err:
-            _LOGGER.debug(
-                "Static path registration exception (falling back to legacy): %s", err
-            )
-            try:
-                hass.http.register_static_path(
-                    FRONTEND_URL_PATH, str(card_path), cache_headers=False
-                )
-            except Exception:
-                pass
+        except Exception as legacy_err:
+            _LOGGER.error("Failed to register static path: %s", legacy_err)
 
-        # Automatically register the Lovelace card resource if available
-        hass.async_create_task(_async_register_lovelace_resource(hass))
+    # Automatically register the Lovelace card resource if available
+    hass.async_create_task(_async_register_lovelace_resource(hass))
 
+
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Set up the Passable Smart Lock Engine component."""
+    await _async_register_frontend(hass)
     return True
 
 
@@ -94,6 +106,8 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Passable Smart Lock Engine from a config entry."""
+    await _async_register_frontend(hass)
+
     engine = PassableLockEngine(hass, entry)
     await engine.async_setup()
 

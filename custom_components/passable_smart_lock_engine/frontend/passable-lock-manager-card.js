@@ -4,7 +4,7 @@ import {
   css,
 } from "https://unpkg.com/lit@3.0.0/index.js?module";
 
-const CARD_VERSION = "2.1.2";
+const CARD_VERSION = "2.2.0";
 
 console.info(
   `%c PASSABLE-LOCK-MANAGER-CARD %c v${CARD_VERSION} `,
@@ -501,21 +501,22 @@ class PassableLockManagerCard extends LitElement {
 
   _getState(entityId, defaultVal = "") {
     if (this._isNativeEngine && this._engineData?.slots) {
-      const match = entityId.match(/^(input_text|input_boolean|input_number|input_select|timer)\.lock_(?:code_|schedule_|timer_)(.+?)_(\d+)$/);
-      if (match) {
-        const [, domain, param, slotStr] = match;
+      const slotMatch = entityId.match(/_(\d+)$/);
+      if (slotMatch) {
+        const slotStr = slotMatch[1];
         const slotData = this._engineData.slots[slotStr];
         if (slotData) {
-          if (param === "name") return slotData.name || "";
-          if (param === "pin") return slotData.pin || "";
-          if (param === "enabled") return slotData.enabled ? "on" : "off";
-          if (param === "guest_mode_enabled") return slotData.guest_mode ? "on" : "off";
-          if (param === "duration") return (slotData.duration || 1).toString();
-          if (param === "action") return slotData.timer_action || "Clear Code";
-          if (param === "timer") return slotData.timer_expires_at ? "active" : "idle";
-          if (param === "days") return (slotData.schedule_days || []).join(",");
-          if (param === "start_time") return slotData.schedule_start || "00:00:00";
-          if (param === "end_time") return slotData.schedule_end || "23:59:59";
+          if (entityId.includes("lock_code_name_")) return slotData.name || "";
+          if (entityId.includes("lock_code_pin_")) return slotData.pin || "";
+          if (entityId.includes("lock_code_enabled_")) return slotData.enabled ? "on" : "off";
+          if (entityId.includes("guest_mode_enabled_")) return slotData.guest_mode ? "on" : "off";
+          if (entityId.includes("lock_code_duration_")) return (slotData.duration || 1).toString();
+          if (entityId.includes("lock_timer_action_") || entityId.includes("lock_code_action_")) return slotData.timer_action || "Clear Code";
+          if (entityId.includes("lock_code_timer_")) return slotData.timer_expires_at ? "active" : "idle";
+          if (entityId.includes("lock_schedule_enabled_")) return slotData.schedule_enabled ? "on" : "off";
+          if (entityId.includes("lock_schedule_days_")) return (slotData.schedule_days || []).join(",");
+          if (entityId.includes("lock_schedule_start_time_")) return slotData.schedule_start || "00:00:00";
+          if (entityId.includes("lock_schedule_end_time_")) return slotData.schedule_end || "23:59:59";
         }
       }
     }
@@ -1101,11 +1102,21 @@ class PassableLockManagerCard extends LitElement {
     const slot = this._editingSlot;
     if (this._isNativeEngine) {
       try {
+        const slotData = this._engineData?.slots?.[slot] || {};
         await this.hass.connection.sendMessagePromise({
           type: "passable_smart_lock_engine/save_slot",
           slot: parseInt(slot, 10),
           pin: this._localPin,
           name: this._localName,
+          enabled: slotData.enabled !== undefined ? slotData.enabled : true,
+          guest_mode: slotData.guest_mode || false,
+          duration: slotData.duration || 1,
+          timer_action: slotData.timer_action || "Clear Code",
+          schedule_enabled: slotData.schedule_enabled || false,
+          schedule_days: slotData.schedule_days || this._fullDaysList,
+          schedule_start: slotData.schedule_start || "00:00:00",
+          schedule_end: slotData.schedule_end || "23:59:59",
+          is_timed: slotData.is_timed || false,
         });
         if (this._engineData?.slots && this._engineData.slots[slot]) {
           this._engineData.slots[slot].name = this._localName;
@@ -1191,24 +1202,34 @@ class PassableLockManagerCard extends LitElement {
 
   async _toggleBoolean(entityId) {
     if (this._isNativeEngine) {
-      const match = entityId.match(/^input_boolean\.lock_code_enabled_(\d+)$/);
+      const match = entityId.match(/_(\d+)$/);
       if (match) {
         const slot = parseInt(match[1], 10);
-        const currentState = this._getState(entityId) === "on";
-        const newState = !currentState;
-        try {
-          await this.hass.connection.sendMessagePromise({
-            type: "passable_smart_lock_engine/toggle_slot",
-            slot: slot,
-            enabled: newState,
-          });
-          if (this._engineData?.slots && this._engineData.slots[slot]) {
-            this._engineData.slots[slot].enabled = newState;
+        const slotData = this._engineData?.slots?.[slot];
+        if (slotData) {
+          if (entityId.includes("lock_code_enabled_")) {
+            const newState = !slotData.enabled;
+            try {
+              await this.hass.connection.sendMessagePromise({
+                type: "passable_smart_lock_engine/toggle_slot",
+                slot: slot,
+                enabled: newState,
+              });
+              slotData.enabled = newState;
+              this.requestUpdate();
+              return;
+            } catch (err) {
+              console.warn("Native toggle fallback:", err);
+            }
+          } else if (entityId.includes("guest_mode_enabled_")) {
+            slotData.guest_mode = !slotData.guest_mode;
+            this.requestUpdate();
+            return;
+          } else if (entityId.includes("lock_schedule_enabled_")) {
+            slotData.schedule_enabled = !slotData.schedule_enabled;
+            this.requestUpdate();
+            return;
           }
-          this.requestUpdate();
-          return;
-        } catch (err) {
-          console.warn("Native toggle fallback:", err);
         }
       }
     }
@@ -1233,6 +1254,24 @@ class PassableLockManagerCard extends LitElement {
     const isSchedEnabled = this._getState(schedEnabledEntId) === "on";
 
     if (!isSchedEnabled) return;
+
+    if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
+      const slotData = this._engineData.slots[slot];
+      let selectedDays = Array.isArray(slotData.schedule_days)
+        ? [...slotData.schedule_days]
+        : [...this._fullDaysList];
+      if (selectedDays.includes(day)) {
+        selectedDays = selectedDays.filter((d) => d !== day);
+      } else {
+        selectedDays.push(day);
+        selectedDays.sort(
+          (a, b) => this._fullDaysList.indexOf(a) - this._fullDaysList.indexOf(b)
+        );
+      }
+      slotData.schedule_days = selectedDays;
+      this.requestUpdate();
+      return;
+    }
 
     const schedDaysEntId = `input_text.lock_schedule_days_${slot}`;
     const currentStr = this._getState(
@@ -1289,12 +1328,22 @@ class PassableLockManagerCard extends LitElement {
       if (state !== "locked") anyUnlocked = true;
     });
 
-    const totalSlots = this.config?.slots || 10;
-    const activeSlots = Object.keys(this.hass.states).filter(
-      (k) =>
-        k.startsWith("input_boolean.lock_code_enabled_") &&
-        this.hass.states[k].state === "on"
-    ).length;
+    const totalSlots =
+      this.config?.slots ||
+      (this._isNativeEngine && this._engineData?.slots_count) ||
+      10;
+    let activeSlots = 0;
+    if (this._isNativeEngine && this._engineData?.slots) {
+      activeSlots = Object.values(this._engineData.slots).filter(
+        (s) => s && s.enabled
+      ).length;
+    } else {
+      activeSlots = Object.keys(this.hass.states).filter(
+        (k) =>
+          k.startsWith("input_boolean.lock_code_enabled_") &&
+          this.hass.states[k].state === "on"
+      ).length;
+    }
 
     const showTimeline = this.config?.show_timeline !== false;
 
@@ -1816,7 +1865,10 @@ class PassableLockManagerCard extends LitElement {
     const selectedDays = schedDaysStr ? schedDaysStr.split(",") : [];
 
     const timerOpts =
-      this._getEntity(timerActionEntId)?.attributes?.options || [];
+      this._getEntity(timerActionEntId)?.attributes?.options || [
+        "Clear Code",
+        "Disable Code",
+      ];
 
     const scriptEntity =
       this.config?.manage_script || "script.manage_lock_codes";
@@ -1935,11 +1987,15 @@ class PassableLockManagerCard extends LitElement {
                     type="number"
                     class="custom-input"
                     .value=${this._getState(durationEntId)}
-                    @change=${(e) =>
+                    @change=${(e) => {
+                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
+                        this._engineData.slots[slot].duration = parseInt(e.target.value, 10);
+                      }
                       this._callService("input_number", "set_value", {
                         entity_id: durationEntId,
                         value: e.target.value,
-                      })}
+                      });
+                    }}
                   />
                 </div>
                 <div class="input-group">
@@ -1947,11 +2003,15 @@ class PassableLockManagerCard extends LitElement {
                   <select
                     class="custom-select"
                     .value=${this._getState(timerActionEntId)}
-                    @change=${(e) =>
+                    @change=${(e) => {
+                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
+                        this._engineData.slots[slot].timer_action = e.target.value;
+                      }
                       this._callService("input_select", "select_option", {
                         entity_id: timerActionEntId,
                         option: e.target.value,
-                      })}
+                      });
+                    }}
                   >
                     ${timerOpts.map(
                       (opt) => html`<option value="${opt}">${opt}</option>`
@@ -1962,7 +2022,18 @@ class PassableLockManagerCard extends LitElement {
               <button
                 class="button-outline"
                 style="margin-top: 16px;"
-                @click=${() =>
+                @click=${() => {
+                  if (this._isNativeEngine) {
+                    this._callService(
+                      "passable_smart_lock_engine",
+                      "manage_lock_codes",
+                      {
+                        action: "set_timed",
+                        code_slot: slot.toString(),
+                      }
+                    );
+                    return;
+                  }
                   this._callService(
                     domain || "script",
                     service || "manage_lock_codes",
@@ -1970,7 +2041,8 @@ class PassableLockManagerCard extends LitElement {
                       action: "set_timed",
                       code_slot: slot.toString(),
                     }
-                  )}
+                  );
+                }}
               >
                 ${Icons.Play}
                 <span style="margin-left:8px"
@@ -2027,11 +2099,15 @@ class PassableLockManagerCard extends LitElement {
                     type="time"
                     class="custom-input time-input"
                     .value=${this._getState(schedStartEntId).slice(0, 5)}
-                    @change=${(e) =>
+                    @change=${(e) => {
+                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
+                        this._engineData.slots[slot].schedule_start = e.target.value;
+                      }
                       this._callService("input_datetime", "set_datetime", {
                         entity_id: schedStartEntId,
                         time: e.target.value,
-                      })}
+                      });
+                    }}
                     ?disabled=${!isSchedEnabled}
                   />
                 </div>
@@ -2041,11 +2117,15 @@ class PassableLockManagerCard extends LitElement {
                     type="time"
                     class="custom-input time-input"
                     .value=${this._getState(schedEndEntId).slice(0, 5)}
-                    @change=${(e) =>
+                    @change=${(e) => {
+                      if (this._isNativeEngine && this._engineData?.slots?.[slot]) {
+                        this._engineData.slots[slot].schedule_end = e.target.value;
+                      }
                       this._callService("input_datetime", "set_datetime", {
                         entity_id: schedEndEntId,
                         time: e.target.value,
-                      })}
+                      });
+                    }}
                     ?disabled=${!isSchedEnabled}
                   />
                 </div>
