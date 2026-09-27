@@ -1156,7 +1156,7 @@ class PassableLockManagerCard extends LitElement {
     this._localPin = pin;
   }
 
-  _handleClear() {
+  async _handleClear() {
     const slot = this._editingSlot;
     const scriptEntity =
       this.config?.manage_script || "script.manage_lock_codes";
