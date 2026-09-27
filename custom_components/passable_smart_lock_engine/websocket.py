@@ -63,13 +63,14 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
             vol.Optional("name"): str,
             vol.Optional("enabled", default=True): bool,
             vol.Optional("guest_mode", default=False): bool,
-            vol.Optional("duration"): vol.Coerce(int),
+            vol.Optional("duration"): vol.Coerce(float),
+            vol.Optional("duration_unit", default="hours"): vol.In(["minutes", "hours"]),
             vol.Optional("timer_action"): str,
             vol.Optional("schedule_enabled"): bool,
             vol.Optional("schedule_days"): [str],
             vol.Optional("schedule_start"): str,
             vol.Optional("schedule_end"): str,
-            vol.Optional("is_timed", default=False): bool,
+            vol.Optional("is_timed", default=None): vol.Any(bool, None),
         }
     )
     @websocket_api.async_response
@@ -87,12 +88,13 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
             enabled=msg.get("enabled", True),
             guest_mode=msg.get("guest_mode", False),
             duration=msg.get("duration"),
+            duration_unit=msg.get("duration_unit", "hours"),
             timer_action=msg.get("timer_action"),
             schedule_enabled=msg.get("schedule_enabled"),
             schedule_days=msg.get("schedule_days"),
             schedule_start=msg.get("schedule_start"),
             schedule_end=msg.get("schedule_end"),
-            is_timed=msg.get("is_timed", False),
+            is_timed=msg.get("is_timed"),
         )
         connection.send_result(msg["id"], {"success": True, "slot": slot})
 

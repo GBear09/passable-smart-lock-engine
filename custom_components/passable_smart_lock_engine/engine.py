@@ -28,6 +28,7 @@ from .const import (
     CONF_LOCKS,
     CONF_SLOTS_COUNT,
     DAYS_OF_WEEK,
+    DEFAULT_BIOMETRIC_MAPPINGS,
     DEFAULT_SLOTS_COUNT,
     DOMAIN,
     EVENT_LOCK_ACCESS,
@@ -85,10 +86,15 @@ class PassableLockEngine:
     @property
     def biometric_mappings(self) -> dict[str, str]:
         """Return biometric slot mappings (slot -> name)."""
-        return self.entry.options.get(
+        mappings = self.entry.options.get(
             CONF_BIOMETRIC_MAPPINGS,
             self.entry.data.get(CONF_BIOMETRIC_MAPPINGS, {}),
         )
+        if not mappings:
+            mappings = self.storage.data.get("biometrics", {})
+        if not mappings:
+            mappings = DEFAULT_BIOMETRIC_MAPPINGS
+        return mappings
 
     async def async_setup(self) -> None:
         """Initialize storage, restore timers, and schedule checks."""
@@ -197,25 +203,31 @@ class PassableLockEngine:
         name: str | None = None,
         enabled: bool = True,
         guest_mode: bool = False,
-        duration: int | None = None,
+        duration: float | int | None = None,
+        duration_unit: str | None = None,
         timer_action: str | None = None,
         schedule_enabled: bool | None = None,
         schedule_days: list[str] | None = None,
         schedule_start: str | None = None,
         schedule_end: str | None = None,
-        is_timed: bool = False,
+        is_timed: bool | None = None,
     ) -> None:
         """Set user PIN code and slot parameters."""
         slot_data = self.storage.get_slot(slot)
+        # If starting a temporary timer, force enabled state to True
+        effective_enabled = True if is_timed is True else enabled
+
         updates: dict[str, Any] = {
             "pin": str(pin).strip(),
-            "enabled": enabled,
+            "enabled": effective_enabled,
             "guest_mode": guest_mode if guest_mode is not None else slot_data.get("guest_mode", False),
         }
         if name is not None:
             updates["name"] = name
         if duration is not None:
-            updates["duration"] = duration
+            updates["duration"] = float(duration)
+        if duration_unit is not None:
+            updates["duration_unit"] = duration_unit
         if timer_action is not None:
             updates["timer_action"] = timer_action
         if schedule_enabled is not None:
@@ -230,15 +242,18 @@ class PassableLockEngine:
         await self.storage.async_update_slot(slot, updates)
 
         # Handle temporary duration timer if specified
-        if is_timed and updates.get("duration", 0) > 0:
+        if is_timed is True and updates.get("duration", 0) > 0:
             await self.async_start_slot_timer(
-                slot, updates["duration"], updates.get("timer_action", TIMER_ACTION_CLEAR)
+                slot,
+                duration=updates["duration"],
+                timer_action=updates.get("timer_action", TIMER_ACTION_CLEAR),
+                duration_unit=updates.get("duration_unit", "hours"),
             )
-        else:
+        elif is_timed is False:
             self.async_cancel_slot_timer(slot)
 
         # Push to physical locks if enabled
-        if enabled:
+        if effective_enabled:
             await self._async_push_slot_to_locks(slot)
         else:
             await self._async_clear_slot_from_locks(slot)
@@ -274,16 +289,27 @@ class PassableLockEngine:
         async_dispatcher_send(self.hass, SIGNAL_SLOT_UPDATED, slot)
 
     async def async_start_slot_timer(
-        self, slot: int, duration_hours: int, timer_action: str
+        self,
+        slot: int,
+        duration: float | int,
+        timer_action: str,
+        duration_unit: str = "hours",
     ) -> None:
         """Start a countdown access timer for a slot."""
         self.async_cancel_slot_timer(slot)
-        expires_at = dt_util.utcnow() + timedelta(hours=int(duration_hours))
+        dur = float(duration)
+        if duration_unit == "minutes":
+            delta = timedelta(minutes=dur)
+        else:
+            delta = timedelta(hours=dur)
+        expires_at = dt_util.utcnow() + delta
         await self.storage.async_update_slot(
             slot,
             {
                 "timer_expires_at": expires_at.isoformat(),
                 "timer_action": timer_action,
+                "duration": dur,
+                "duration_unit": duration_unit,
                 "enabled": True,
             },
         )
@@ -296,6 +322,8 @@ class PassableLockEngine:
             expires_at,
         )
         self._timer_unsubs[str(slot)] = unsub
+        # Ensure PIN code is pushed to physical locks when timer starts
+        await self._async_push_slot_to_locks(slot)
         async_dispatcher_send(self.hass, SIGNAL_SLOT_UPDATED, slot)
 
     def async_cancel_slot_timer(self, slot: int) -> None:
@@ -382,16 +410,16 @@ class PassableLockEngine:
         elif a_type == "19":
             # Keypad PIN unlock
             slot_data = self.storage.get_slot(a_level)
-            person_name = slot_data.get("name", f"Slot {a_level}")
+            person_name = slot_data.get("name") or f"Slot {a_level}"
             is_family = person_name.lower() in ["family", "homeowner"]
-            is_guest = slot_data.get("guest_mode", False)
+            is_guest = bool(slot_data.get("guest_mode", False))
 
         return {
             "person_name": person_name,
-            "is_family": is_family,
-            "is_guest": is_guest,
-            "slot": a_level,
-            "type": a_type,
+            "is_family": bool(is_family),
+            "is_guest": bool(is_guest),
+            "slot": str(a_level),
+            "type": str(a_type),
         }
 
     @callback

@@ -4,13 +4,20 @@ from typing import Final
 
 DOMAIN: Final = "passable_smart_lock_engine"
 NAME: Final = "Passable Smart Lock Engine"
-VERSION: Final = "1.0.5"
+VERSION: Final = "1.0.6"
 
 # Configuration & Options keys
 CONF_LOCKS: Final = "locks"
 CONF_SLOTS_COUNT: Final = "slots_count"
 CONF_BIOMETRIC_MAPPINGS: Final = "biometric_mappings"
 CONF_IMPORT_HELPERS: Final = "import_helpers"
+
+DEFAULT_BIOMETRIC_MAPPINGS: Final = {
+    "1": "Myles",
+    "2": "Megan",
+    "3": "Madeleine",
+    "4": "Margaret",
+}
 
 DEFAULT_SLOTS_COUNT: Final = 10
 MIN_SLOTS_COUNT: Final = 1

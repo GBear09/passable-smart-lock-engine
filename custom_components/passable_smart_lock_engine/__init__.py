@@ -142,6 +142,7 @@ def _async_register_services(hass: HomeAssistant, engine: PassableLockEngine) ->
         enabled = call.data.get("enabled", True)
         guest_mode = call.data.get("guest_mode", False)
         duration = call.data.get("duration")
+        duration_unit = call.data.get("duration_unit", "hours")
         timer_action = call.data.get("timer_action")
         schedule_enabled = call.data.get("schedule_enabled")
         schedule_days = call.data.get("schedule_days")
@@ -156,6 +157,7 @@ def _async_register_services(hass: HomeAssistant, engine: PassableLockEngine) ->
             enabled=enabled,
             guest_mode=guest_mode,
             duration=duration,
+            duration_unit=duration_unit,
             timer_action=timer_action,
             schedule_enabled=schedule_enabled,
             schedule_days=schedule_days,

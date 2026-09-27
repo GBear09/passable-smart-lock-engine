@@ -4,7 +4,7 @@ import {
   css,
 } from "https://unpkg.com/lit@3.0.0/index.js?module";
 
-const CARD_VERSION = "2.2.2";
+const CARD_VERSION = "2.3.0";
 
 console.info(
   `%c PASSABLE-LOCK-MANAGER-CARD %c v${CARD_VERSION} `,
@@ -424,6 +424,16 @@ class PassableLockManagerCard extends LitElement {
       this._fetchEngineData();
       this._fetchActivityData();
     }, 30000);
+    this._secondTicker = setInterval(() => {
+      if (this._engineData?.slots) {
+        const hasActiveTimer = Object.values(this._engineData.slots).some(
+          (s) => s && s.timer_expires_at
+        );
+        if (hasActiveTimer) {
+          this.requestUpdate();
+        }
+      }
+    }, 1000);
   }
 
   disconnectedCallback() {
@@ -431,6 +441,10 @@ class PassableLockManagerCard extends LitElement {
     if (this._fetchTimer) {
       clearInterval(this._fetchTimer);
       this._fetchTimer = null;
+    }
+    if (this._secondTicker) {
+      clearInterval(this._secondTicker);
+      this._secondTicker = null;
     }
   }
 
@@ -629,6 +643,48 @@ class PassableLockManagerCard extends LitElement {
     const remainingMin = totalMin % 60;
     if (remainingMin === 0) return `${hours}h`;
     return `${hours}h ${remainingMin}m`;
+  }
+
+  _formatRemainingShort(ms) {
+    if (ms <= 0) return "Expired";
+    const totalMinutes = Math.floor(ms / (60 * 1000));
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      const remHours = hours % 24;
+      return `${days}d ${remHours}h left`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${mins}m left`;
+    }
+    if (mins > 0) {
+      return `${mins}m left`;
+    }
+    const secs = Math.floor(ms / 1000);
+    return `${secs}s left`;
+  }
+
+  _formatRemainingFull(ms) {
+    if (ms <= 0) return "Expired (clearing...)";
+    const totalMinutes = Math.floor(ms / (60 * 1000));
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      const remHours = hours % 24;
+      return `${days} day${days > 1 ? "s" : ""} ${remHours} hr${remHours > 1 ? "s" : ""} remaining`;
+    }
+    if (hours > 0) {
+      return `${hours} hr${hours > 1 ? "s" : ""} ${mins} min${mins > 1 ? "s" : ""} remaining`;
+    }
+    if (mins > 0) {
+      return `${mins} minute${mins > 1 ? "s" : ""} remaining`;
+    }
+    const secs = Math.floor(ms / 1000);
+    return `${secs} second${secs > 1 ? "s" : ""} remaining`;
   }
 
   // --- DOOR LOCK CONTROLS ---
@@ -1106,12 +1162,17 @@ class PassableLockManagerCard extends LitElement {
     this._editingSlot = slot;
     this._saveError = null;
     const slotData = this._getSlotData(slot) || {};
-    this._localName = slotData.name || "";
+    let currentName = slotData.name || "";
+    if (currentName.toLowerCase() === `slot ${slot}`.toLowerCase()) {
+      currentName = "";
+    }
+    this._localName = currentName;
     this._localPin = slotData.pin || "";
     this._localEnabled =
       slotData.enabled !== undefined ? Boolean(slotData.enabled) : true;
     this._localGuest = Boolean(slotData.guest_mode);
     this._localDuration = slotData.duration || 1;
+    this._localDurationUnit = slotData.duration_unit || "hours";
     this._localTimerAction = slotData.timer_action || "Clear Code";
     this._localSchedEnabled = Boolean(slotData.schedule_enabled);
     this._localSchedDays =
@@ -1120,7 +1181,7 @@ class PassableLockManagerCard extends LitElement {
         : [...this._fullDaysList];
     this._localSchedStart = slotData.schedule_start || "00:00:00";
     this._localSchedEnd = slotData.schedule_end || "23:59:59";
-    this._localIsTimed = Boolean(slotData.is_timed);
+    this._localIsTimed = Boolean(slotData.timer_expires_at);
   }
 
   _closeEdit() {
@@ -1135,6 +1196,16 @@ class PassableLockManagerCard extends LitElement {
 
     if (isTimed !== null) {
       this._localIsTimed = Boolean(isTimed);
+      if (this._localIsTimed) {
+        this._localEnabled = true;
+      }
+    }
+
+    if (this._localIsTimed && (!this._localPin || this._localPin.length < 4)) {
+      this._saveError =
+        "Please enter a valid PIN (at least 4 digits) before starting the timer.";
+      this.requestUpdate();
+      return;
     }
 
     try {
@@ -1142,16 +1213,17 @@ class PassableLockManagerCard extends LitElement {
         type: "passable_smart_lock_engine/save_slot",
         slot: parseInt(slot, 10),
         pin: this._localPin || "",
-        name: this._localName || `Slot ${slot}`,
+        name: this._localName || "",
         enabled: Boolean(this._localEnabled),
         guest_mode: Boolean(this._localGuest),
-        duration: parseInt(this._localDuration, 10) || 1,
+        duration: parseFloat(this._localDuration) || 1,
+        duration_unit: this._localDurationUnit || "hours",
         timer_action: this._localTimerAction || "Clear Code",
         schedule_enabled: Boolean(this._localSchedEnabled),
         schedule_days: this._localSchedDays || this._fullDaysList,
         schedule_start: this._localSchedStart || "00:00:00",
         schedule_end: this._localSchedEnd || "23:59:59",
-        is_timed: Boolean(this._localIsTimed),
+        is_timed: isTimed !== null ? Boolean(isTimed) : null,
       });
 
       if (!this._engineData) {
@@ -1163,17 +1235,17 @@ class PassableLockManagerCard extends LitElement {
       this._engineData.slots[slot] = {
         ...(this._engineData.slots[slot] || {}),
         slot: parseInt(slot, 10),
-        name: this._localName || `Slot ${slot}`,
+        name: this._localName || "",
         pin: this._localPin || "",
         enabled: Boolean(this._localEnabled),
         guest_mode: Boolean(this._localGuest),
-        duration: parseInt(this._localDuration, 10) || 1,
+        duration: parseFloat(this._localDuration) || 1,
+        duration_unit: this._localDurationUnit || "hours",
         timer_action: this._localTimerAction || "Clear Code",
         schedule_enabled: Boolean(this._localSchedEnabled),
         schedule_days: this._localSchedDays || this._fullDaysList,
         schedule_start: this._localSchedStart || "00:00:00",
         schedule_end: this._localSchedEnd || "23:59:59",
-        is_timed: Boolean(this._localIsTimed),
       };
 
       this._closeEdit();
@@ -1760,12 +1832,32 @@ class PassableLockManagerCard extends LitElement {
 
   _renderSlotCard(slot, index) {
     const slotData = this._getSlotData(slot) || {};
-    const name = slotData.name || "";
-    const pin = slotData.pin || "";
+    const rawName = (slotData.name || "").trim();
+    const pin = (slotData.pin || "").trim();
     const enabled = Boolean(slotData.enabled);
     const guest = Boolean(slotData.guest_mode);
     const timerActive = Boolean(slotData.timer_expires_at);
-    const isConfigured = (name && name.length > 0) || (pin && pin.length > 0);
+
+    // Treat blank or default "Slot X" without pin as unconfigured
+    const isDefaultOrEmptyName =
+      !rawName || rawName.toLowerCase() === `slot ${slot}`.toLowerCase();
+    const isConfigured = Boolean((!isDefaultOrEmptyName && rawName) || pin);
+    const displayTitle = !isDefaultOrEmptyName
+      ? rawName
+      : pin
+      ? `Slot ${slot}`
+      : "Empty Slot";
+
+    let timerCountdownText = "Timer";
+    if (timerActive && slotData.timer_expires_at) {
+      const remainingMs =
+        new Date(slotData.timer_expires_at).getTime() - Date.now();
+      if (remainingMs > 0) {
+        timerCountdownText = this._formatRemainingShort(remainingMs);
+      } else {
+        timerCountdownText = "Expiring...";
+      }
+    }
 
     return html`
       <div
@@ -1782,7 +1874,7 @@ class PassableLockManagerCard extends LitElement {
 
         <div class="card-body">
           <h3 class="card-title ${enabled || isConfigured ? "active" : ""}">
-            ${name || "Empty Slot"}
+            ${displayTitle}
           </h3>
           <p class="pin-text">${pin ? "••••" : "Not Set"}</p>
         </div>
@@ -1798,7 +1890,9 @@ class PassableLockManagerCard extends LitElement {
                   ? html`<span class="badge warning">${Icons.User} Guest</span>`
                   : ""}
                 ${timerActive
-                  ? html`<span class="badge info">${Icons.Clock} Timer</span>`
+                  ? html`<span class="badge info" title="Temporary access timer active"
+                      >${Icons.Clock} ${timerCountdownText}</span
+                    >`
                   : ""}
               `}
         </div>
@@ -1836,6 +1930,34 @@ class PassableLockManagerCard extends LitElement {
             >
               ${this._saveError}
             </div>`
+          : ""}
+
+        ${isTimerActive && slotData.timer_expires_at
+          ? html`
+              <div
+                class="timer-live-banner"
+                style="background: rgba(33, 150, 243, 0.12); border: 1px solid rgba(33, 150, 243, 0.35); padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;"
+              >
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="color: #2196f3;">${Icons.Clock}</span>
+                  <div>
+                    <div style="font-weight: 600; font-size: 13px;">Timer Active</div>
+                    <div style="font-size: 12px; color: var(--secondary-text-color);">
+                      ${this._formatRemainingFull(
+                        new Date(slotData.timer_expires_at).getTime() - Date.now()
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  class="button-outline"
+                  style="color: var(--error-color, #f44336); border-color: rgba(244,67,54,0.4); padding: 4px 10px; font-size: 12px;"
+                  @click=${() => this._handleSave(false)}
+                >
+                  Cancel Timer
+                </button>
+              </div>
+            `
           : ""}
 
         <div class="edit-body">
@@ -1931,9 +2053,67 @@ class PassableLockManagerCard extends LitElement {
             "Timer",
             Icons.ClockLg,
             html`
+              ${isTimerActive && slotData.timer_expires_at
+                ? html`
+                    <div
+                      class="timer-live-badge-box"
+                      style="display: flex; align-items: center; justify-content: space-between; background: rgba(33,150,243,0.12); border: 1px solid rgba(33,150,243,0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;"
+                    >
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="color: #2196f3;">${Icons.Clock}</span>
+                        <div>
+                          <div style="font-weight: 600; font-size: 13px;">Active Countdown</div>
+                          <div style="font-size: 12px; color: var(--secondary-text-color);">
+                            ${this._formatRemainingFull(
+                              new Date(slotData.timer_expires_at).getTime() - Date.now()
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        class="button-outline"
+                        style="color: var(--error-color, #f44336); border-color: rgba(244,67,54,0.4); padding: 4px 8px; font-size: 12px;"
+                        @click=${() => this._handleSave(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  `
+                : ""}
+
+              <div style="margin-bottom: 12px;">
+                <label class="input-label" style="margin-bottom: 6px; display: block;">Quick Presets</label>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  ${[
+                    { label: "15m", val: 15, unit: "minutes" },
+                    { label: "30m", val: 30, unit: "minutes" },
+                    { label: "1h", val: 1, unit: "hours" },
+                    { label: "2h", val: 2, unit: "hours" },
+                    { label: "4h", val: 4, unit: "hours" },
+                    { label: "8h", val: 8, unit: "hours" },
+                    { label: "24h", val: 24, unit: "hours" },
+                  ].map(
+                    (p) => html`
+                      <button
+                        type="button"
+                        class="button-outline"
+                        style="padding: 4px 10px; font-size: 12px; border-radius: 6px; ${this._localDuration === p.val && this._localDurationUnit === p.unit ? "background: var(--primary-color); color: #fff; border-color: var(--primary-color);" : ""}"
+                        @click=${() => {
+                          this._localDuration = p.val;
+                          this._localDurationUnit = p.unit;
+                          this.requestUpdate();
+                        }}
+                      >
+                        ${p.label}
+                      </button>
+                    `
+                  )}
+                </div>
+              </div>
+
               <div class="inline-grid">
                 <div class="input-group">
-                  <label class="input-label">Duration (Hours)</label>
+                  <label class="input-label">Duration</label>
                   <input
                     type="number"
                     min="1"
@@ -1941,31 +2121,55 @@ class PassableLockManagerCard extends LitElement {
                     .value=${this._localDuration}
                     @input=${(e) =>
                       (this._localDuration =
-                        parseInt(e.target.value, 10) || 1)}
+                        parseFloat(e.target.value) || 1)}
                   />
                 </div>
                 <div class="input-group">
-                  <label class="input-label">Action</label>
+                  <label class="input-label">Unit</label>
                   <select
                     class="custom-select"
-                    .value=${this._localTimerAction}
-                    @change=${(e) =>
-                      (this._localTimerAction = e.target.value)}
+                    .value=${this._localDurationUnit || "hours"}
+                    @change=${(e) => {
+                      this._localDurationUnit = e.target.value;
+                      this.requestUpdate();
+                    }}
                   >
-                    <option value="Clear Code">Clear Code</option>
-                    <option value="Disable Code">Disable Code</option>
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
                   </select>
                 </div>
               </div>
+
+              <div class="input-group" style="margin-top: 10px;">
+                <label class="input-label">When Timer Expires</label>
+                <select
+                  class="custom-select"
+                  .value=${this._localTimerAction || "Clear Code"}
+                  @change=${(e) =>
+                    (this._localTimerAction = e.target.value)}
+                >
+                  <option value="Clear Code">Clear Code (Delete from lock)</option>
+                  <option value="Disable Code">Disable Code (Turn off slot)</option>
+                </select>
+              </div>
+
               <div style="display: flex; gap: 10px; margin-top: 16px;">
                 <button
-                  class="button-outline"
+                  class="button-primary timer-start-btn"
                   style="flex: 1;"
-                  @click=${() => this._handleSave(true)}
+                  @click=${() => {
+                    if (!this._localPin || this._localPin.length < 4) {
+                      this._saveError = "Please enter a valid PIN (at least 4 digits) before starting the timer.";
+                      this.requestUpdate();
+                      return;
+                    }
+                    this._localEnabled = true;
+                    this._handleSave(true);
+                  }}
                 >
                   ${Icons.Play}
                   <span style="margin-left:8px"
-                    >${isTimerActive ? "Restart Timer" : "Start Timer"}</span
+                    >${isTimerActive ? "Restart Timer & Push to Lock" : "Start Timer & Push to Lock"}</span
                   >
                 </button>
                 ${isTimerActive
@@ -2056,7 +2260,7 @@ class PassableLockManagerCard extends LitElement {
           </button>
           <button
             class="button-primary"
-            @click=${() => this._handleSave(this._localIsTimed)}
+            @click=${() => this._handleSave(null)}
           >
             ${Icons.Save} Save
           </button>

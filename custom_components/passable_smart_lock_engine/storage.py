@@ -23,11 +23,12 @@ def get_default_slot_data(slot: int) -> dict[str, Any]:
     """Return default empty configuration for a slot."""
     return {
         "slot": slot,
-        "name": f"Slot {slot}",
+        "name": "",
         "pin": "",
         "enabled": False,
         "guest_mode": False,
         "duration": 1,
+        "duration_unit": "hours",
         "timer_action": TIMER_ACTION_CLEAR,
         "timer_expires_at": None,
         "schedule_enabled": False,
@@ -73,6 +74,13 @@ class PassableLockStorage:
             self.data["biometrics"] = {}
         if "settings" not in self.data:
             self.data["settings"] = {"slots_count": DEFAULT_SLOTS_COUNT}
+
+        # Clean up legacy default names like "Slot 9" if no PIN is set
+        for s_id, s_data in self.data.get("slots", {}).items():
+            if s_data.get("name") == f"Slot {s_id}" and not s_data.get("pin"):
+                s_data["name"] = ""
+            if "duration_unit" not in s_data:
+                s_data["duration_unit"] = "hours"
 
         return self.data
 
