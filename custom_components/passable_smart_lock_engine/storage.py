@@ -58,7 +58,7 @@ class PassableLockStorage:
             self.data = stored
         else:
             # Initialize with default slots
-            slots_count = self.data["settings"].get("slots_count", DEFAULT_SLOTS_COUNT)
+            slots_count = int(float(self.data["settings"].get("slots_count", DEFAULT_SLOTS_COUNT)))
             self.data["slots"] = {
                 str(i): get_default_slot_data(i) for i in range(1, slots_count + 1)
             }
@@ -103,10 +103,11 @@ class PassableLockStorage:
         await self.async_save()
         return self.data["slots"][slot_key]
 
-    async def async_set_slots_count(self, count: int) -> None:
+    async def async_set_slots_count(self, count: int | float) -> None:
         """Adjust total managed slots count."""
-        self.data["settings"]["slots_count"] = count
-        for i in range(1, count + 1):
+        count_int = int(float(count))
+        self.data["settings"]["slots_count"] = count_int
+        for i in range(1, count_int + 1):
             s_key = str(i)
             if s_key not in self.data["slots"]:
                 self.data["slots"][s_key] = get_default_slot_data(i)

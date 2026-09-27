@@ -73,10 +73,14 @@ class PassableLockEngine:
     @property
     def slots_count(self) -> int:
         """Return number of configured slots."""
-        return self.entry.options.get(
+        raw = self.entry.options.get(
             CONF_SLOTS_COUNT,
             self.entry.data.get(CONF_SLOTS_COUNT, DEFAULT_SLOTS_COUNT),
         )
+        try:
+            return int(float(raw))
+        except (ValueError, TypeError):
+            return DEFAULT_SLOTS_COUNT
 
     @property
     def biometric_mappings(self) -> dict[str, str]:
@@ -510,7 +514,7 @@ class PassableLockEngine:
             _LOGGER.info("Imported YAML helper data for Slot %s: %s", i, name_val)
 
         if imported_count > 0:
-            await self.storage.async_set_slots_count(max(imported_count, self.slots_count))
+            await self.storage.async_set_slots_count(int(max(imported_count, self.slots_count)))
             async_dispatcher_send(self.hass, SIGNAL_SLOT_UPDATED, 0)
 
         _LOGGER.info("Completed import: %s slots imported into storage", imported_count)

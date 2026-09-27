@@ -28,7 +28,7 @@ async def async_setup_entry(
 
     switches = [
         PassableLockSlotSwitch(engine, slot_num)
-        for slot_num in range(1, engine.slots_count + 1)
+        for slot_num in range(1, int(engine.slots_count) + 1)
     ]
     async_add_entities(switches)
 

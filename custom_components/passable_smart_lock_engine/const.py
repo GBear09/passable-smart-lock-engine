@@ -4,7 +4,7 @@ from typing import Final
 
 DOMAIN: Final = "passable_smart_lock_engine"
 NAME: Final = "Passable Smart Lock Engine"
-VERSION: Final = "1.0.0"
+VERSION: Final = "1.0.1"
 
 # Configuration & Options keys
 CONF_LOCKS: Final = "locks"

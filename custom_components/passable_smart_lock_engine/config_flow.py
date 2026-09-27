@@ -42,6 +42,12 @@ class PassableLockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
 
         if user_input is not None:
+            if CONF_SLOTS_COUNT in user_input:
+                try:
+                    user_input[CONF_SLOTS_COUNT] = int(float(user_input[CONF_SLOTS_COUNT]))
+                except (ValueError, TypeError):
+                    user_input[CONF_SLOTS_COUNT] = DEFAULT_SLOTS_COUNT
+
             locks = user_input.get(CONF_LOCKS, [])
             if not locks:
                 errors["base"] = "no_locks_selected"
@@ -107,9 +113,15 @@ class PassableLockOptionsFlowHandler(config_entries.OptionsFlow):
                 if key in user_input and user_input[key]:
                     biometrics[str(i)] = user_input[key]
 
+            raw_slots = user_input.get(CONF_SLOTS_COUNT, DEFAULT_SLOTS_COUNT)
+            try:
+                slots_int = int(float(raw_slots))
+            except (ValueError, TypeError):
+                slots_int = DEFAULT_SLOTS_COUNT
+
             options_data = {
                 CONF_LOCKS: user_input.get(CONF_LOCKS, []),
-                CONF_SLOTS_COUNT: user_input.get(CONF_SLOTS_COUNT, DEFAULT_SLOTS_COUNT),
+                CONF_SLOTS_COUNT: slots_int,
                 CONF_BIOMETRIC_MAPPINGS: biometrics,
             }
 
