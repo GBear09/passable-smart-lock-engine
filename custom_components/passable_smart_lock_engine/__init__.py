@@ -120,8 +120,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = engine
 
-    # Check if user requested helper import during initial setup
+    # Check if user requested helper import during initial setup (run once, then clear flag)
     if entry.data.get(CONF_IMPORT_HELPERS, False):
+        new_data = {k: v for k, v in entry.data.items() if k != CONF_IMPORT_HELPERS}
+        hass.config_entries.async_update_entry(entry, data=new_data)
         hass.async_create_task(engine.async_import_from_yaml_helpers())
 
     # Register WebSocket API

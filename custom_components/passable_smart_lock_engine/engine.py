@@ -26,10 +26,12 @@ from .const import (
     ACTION_SET_TIMED,
     ACTION_SYNC,
     CONF_BIOMETRIC_MAPPINGS,
+    CONF_BIOMETRIC_SLOTS_COUNT,
     CONF_LOCKS,
     CONF_SLOTS_COUNT,
     DAYS_OF_WEEK,
     DEFAULT_BIOMETRIC_MAPPINGS,
+    DEFAULT_BIOMETRIC_SLOTS_COUNT,
     DEFAULT_SLOTS_COUNT,
     DOMAIN,
     EVENT_LOCK_ACCESS,
@@ -97,6 +99,18 @@ class PassableLockEngine:
         if not mappings:
             mappings = DEFAULT_BIOMETRIC_MAPPINGS
         return mappings
+
+    @property
+    def biometric_slots_count(self) -> int:
+        """Return number of configured biometric slots."""
+        raw = self.entry.options.get(
+            CONF_BIOMETRIC_SLOTS_COUNT,
+            self.entry.data.get(CONF_BIOMETRIC_SLOTS_COUNT, DEFAULT_BIOMETRIC_SLOTS_COUNT),
+        )
+        try:
+            return int(float(raw))
+        except (ValueError, TypeError):
+            return DEFAULT_BIOMETRIC_SLOTS_COUNT
 
     async def async_setup(self) -> None:
         """Initialize storage, restore timers, and schedule checks."""
@@ -661,6 +675,15 @@ class PassableLockEngine:
 
             # Check if this slot helper exists
             if not name_state and not pin_state:
+                continue
+
+            existing_slot = self.storage.get_slot(i)
+            # If the storage slot is already active/has a PIN and helper has no PIN, do NOT wipe it
+            if existing_slot.get("pin") and not pin_val:
+                _LOGGER.info(
+                    "Skipping YAML import for Slot %s: storage already has active PIN and helper is empty",
+                    i,
+                )
                 continue
 
             name_val = name_state.state if name_state else f"Slot {i}"

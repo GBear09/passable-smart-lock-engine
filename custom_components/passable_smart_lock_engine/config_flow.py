@@ -13,12 +13,16 @@ import voluptuous as vol
 
 from .const import (
     CONF_BIOMETRIC_MAPPINGS,
+    CONF_BIOMETRIC_SLOTS_COUNT,
     CONF_IMPORT_HELPERS,
     CONF_LOCKS,
     CONF_SLOTS_COUNT,
+    DEFAULT_BIOMETRIC_SLOTS_COUNT,
     DEFAULT_SLOTS_COUNT,
     DOMAIN,
+    MAX_BIOMETRIC_SLOTS_COUNT,
     MAX_SLOTS_COUNT,
+    MIN_BIOMETRIC_SLOTS_COUNT,
     MIN_SLOTS_COUNT,
     NAME,
 )
@@ -112,22 +116,31 @@ class PassableLockOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage options: adjust locks, slot counts, and biometric names."""
         if user_input is not None:
-            # Extract biometric slot names
-            biometrics = {}
-            for i in range(1, 5):
-                key = f"biometric_slot_{i}_name"
-                if key in user_input and user_input[key]:
-                    biometrics[str(i)] = user_input[key]
-
             raw_slots = user_input.get(CONF_SLOTS_COUNT, DEFAULT_SLOTS_COUNT)
             try:
                 slots_int = int(float(raw_slots))
             except (ValueError, TypeError):
                 slots_int = DEFAULT_SLOTS_COUNT
 
+            raw_bio_count = user_input.get(
+                CONF_BIOMETRIC_SLOTS_COUNT, DEFAULT_BIOMETRIC_SLOTS_COUNT
+            )
+            try:
+                bio_count_int = int(float(raw_bio_count))
+            except (ValueError, TypeError):
+                bio_count_int = DEFAULT_BIOMETRIC_SLOTS_COUNT
+
+            # Extract biometric slot names up to MAX_BIOMETRIC_SLOTS_COUNT
+            biometrics = {}
+            for i in range(1, MAX_BIOMETRIC_SLOTS_COUNT + 1):
+                key = f"biometric_slot_{i}_name"
+                if key in user_input and user_input[key]:
+                    biometrics[str(i)] = str(user_input[key]).strip()
+
             options_data = {
                 CONF_LOCKS: user_input.get(CONF_LOCKS, []),
                 CONF_SLOTS_COUNT: slots_int,
+                CONF_BIOMETRIC_SLOTS_COUNT: bio_count_int,
                 CONF_BIOMETRIC_MAPPINGS: biometrics,
             }
 
@@ -149,39 +162,57 @@ class PassableLockOptionsFlowHandler(config_entries.OptionsFlow):
             self.config_entry.data.get(CONF_BIOMETRIC_MAPPINGS, {}),
         ))
 
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_LOCKS, default=current_locks
-                ): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="lock", multiple=True)
+        try:
+            current_bio_count = int(float(self.config_entry.options.get(
+                CONF_BIOMETRIC_SLOTS_COUNT,
+                self.config_entry.data.get(
+                    CONF_BIOMETRIC_SLOTS_COUNT, DEFAULT_BIOMETRIC_SLOTS_COUNT
                 ),
-                vol.Required(
-                    CONF_SLOTS_COUNT, default=current_slots
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=MIN_SLOTS_COUNT,
-                        max=MAX_SLOTS_COUNT,
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
+            )))
+        except (ValueError, TypeError):
+            current_bio_count = DEFAULT_BIOMETRIC_SLOTS_COUNT
+
+        # Ensure current_bio_count is at least as large as any existing named slot
+        if current_biometrics:
+            numeric_keys = [int(k) for k in current_biometrics.keys() if k.isdigit()]
+            if numeric_keys:
+                current_bio_count = max(current_bio_count, max(numeric_keys))
+
+        schema_dict: dict[Any, Any] = {
+            vol.Required(
+                CONF_LOCKS, default=current_locks
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="lock", multiple=True)
+            ),
+            vol.Required(
+                CONF_SLOTS_COUNT, default=current_slots
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=MIN_SLOTS_COUNT,
+                    max=MAX_SLOTS_COUNT,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                CONF_BIOMETRIC_SLOTS_COUNT, default=current_bio_count
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=MIN_BIOMETRIC_SLOTS_COUNT,
+                    max=MAX_BIOMETRIC_SLOTS_COUNT,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+        }
+
+        for i in range(1, current_bio_count + 1):
+            schema_dict[
                 vol.Optional(
-                    "biometric_slot_1_name",
-                    default=current_biometrics.get("1", ""),
-                ): selector.TextSelector(),
-                vol.Optional(
-                    "biometric_slot_2_name",
-                    default=current_biometrics.get("2", ""),
-                ): selector.TextSelector(),
-                vol.Optional(
-                    "biometric_slot_3_name",
-                    default=current_biometrics.get("3", ""),
-                ): selector.TextSelector(),
-                vol.Optional(
-                    "biometric_slot_4_name",
-                    default=current_biometrics.get("4", ""),
-                ): selector.TextSelector(),
-            }
-        )
+                    f"biometric_slot_{i}_name",
+                    description={"suggested_value": current_biometrics.get(str(i), "")},
+                    default=current_biometrics.get(str(i), ""),
+                )
+            ] = selector.TextSelector()
+
+        schema = vol.Schema(schema_dict)
 
         return self.async_show_form(step_id="init", data_schema=schema)

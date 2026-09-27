@@ -4,12 +4,13 @@ from typing import Final
 
 DOMAIN: Final = "passable_smart_lock_engine"
 NAME: Final = "Passable Smart Lock Engine"
-VERSION: Final = "1.0.8"
+VERSION: Final = "1.0.9"
 
 # Configuration & Options keys
 CONF_LOCKS: Final = "locks"
 CONF_SLOTS_COUNT: Final = "slots_count"
 CONF_BIOMETRIC_MAPPINGS: Final = "biometric_mappings"
+CONF_BIOMETRIC_SLOTS_COUNT: Final = "biometric_slots_count"
 CONF_IMPORT_HELPERS: Final = "import_helpers"
 
 DEFAULT_BIOMETRIC_MAPPINGS: Final = {
@@ -22,6 +23,10 @@ DEFAULT_BIOMETRIC_MAPPINGS: Final = {
 DEFAULT_SLOTS_COUNT: Final = 10
 MIN_SLOTS_COUNT: Final = 1
 MAX_SLOTS_COUNT: Final = 30
+
+DEFAULT_BIOMETRIC_SLOTS_COUNT: Final = 4
+MIN_BIOMETRIC_SLOTS_COUNT: Final = 1
+MAX_BIOMETRIC_SLOTS_COUNT: Final = 20
 
 # Storage
 STORAGE_KEY: Final = "passable_smart_lock_engine.storage"

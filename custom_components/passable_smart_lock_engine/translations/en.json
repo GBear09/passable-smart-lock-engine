@@ -23,10 +23,27 @@
         "data": {
           "locks": "Managed Locks",
           "slots_count": "Number of Managed Slots",
+          "biometric_slots_count": "Number of Biometric Slots",
           "biometric_slot_1_name": "Biometric Slot 1 Name",
           "biometric_slot_2_name": "Biometric Slot 2 Name",
           "biometric_slot_3_name": "Biometric Slot 3 Name",
-          "biometric_slot_4_name": "Biometric Slot 4 Name"
+          "biometric_slot_4_name": "Biometric Slot 4 Name",
+          "biometric_slot_5_name": "Biometric Slot 5 Name",
+          "biometric_slot_6_name": "Biometric Slot 6 Name",
+          "biometric_slot_7_name": "Biometric Slot 7 Name",
+          "biometric_slot_8_name": "Biometric Slot 8 Name",
+          "biometric_slot_9_name": "Biometric Slot 9 Name",
+          "biometric_slot_10_name": "Biometric Slot 10 Name",
+          "biometric_slot_11_name": "Biometric Slot 11 Name",
+          "biometric_slot_12_name": "Biometric Slot 12 Name",
+          "biometric_slot_13_name": "Biometric Slot 13 Name",
+          "biometric_slot_14_name": "Biometric Slot 14 Name",
+          "biometric_slot_15_name": "Biometric Slot 15 Name",
+          "biometric_slot_16_name": "Biometric Slot 16 Name",
+          "biometric_slot_17_name": "Biometric Slot 17 Name",
+          "biometric_slot_18_name": "Biometric Slot 18 Name",
+          "biometric_slot_19_name": "Biometric Slot 19 Name",
+          "biometric_slot_20_name": "Biometric Slot 20 Name"
         }
       }
     }
