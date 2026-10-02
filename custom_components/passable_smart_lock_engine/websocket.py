@@ -71,6 +71,7 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
             vol.Optional("schedule_start"): str,
             vol.Optional("schedule_end"): str,
             vol.Optional("is_timed", default=None): vol.Any(bool, None),
+            vol.Optional("notify_on_active"): bool,
         }
     )
     @websocket_api.async_response
@@ -95,6 +96,7 @@ def async_register_websocket_api(hass: HomeAssistant, engine: PassableLockEngine
             schedule_start=msg.get("schedule_start"),
             schedule_end=msg.get("schedule_end"),
             is_timed=msg.get("is_timed"),
+            notify_on_active=msg.get("notify_on_active"),
         )
         connection.send_result(msg["id"], {"success": True, "slot": slot})
 

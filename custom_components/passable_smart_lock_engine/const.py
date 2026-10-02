@@ -4,7 +4,7 @@ from typing import Final
 
 DOMAIN: Final = "passable_smart_lock_engine"
 NAME: Final = "Passable Smart Lock Engine"
-VERSION: Final = "1.0.9"
+VERSION: Final = "1.1.0"
 
 # Configuration & Options keys
 CONF_LOCKS: Final = "locks"
@@ -48,6 +48,8 @@ SERVICE_MANAGE_LOCK_CODES: Final = "manage_lock_codes"
 
 # Events
 EVENT_LOCK_ACCESS: Final = "passable_smart_lock_engine_access"
+EVENT_SLOT_ENABLED: Final = "passable_smart_lock_engine_slot_enabled"
+EVENT_SLOT_DISABLED: Final = "passable_smart_lock_engine_slot_disabled"
 
 # Days of the week
 DAYS_OF_WEEK: Final = [

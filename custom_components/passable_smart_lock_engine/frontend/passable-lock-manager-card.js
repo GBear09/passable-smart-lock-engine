@@ -28,6 +28,20 @@ const Icons = {
     <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </svg>`,
+  Bell: html`<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+  </svg>`,
   Unlock: html`<svg
     xmlns="http://www.w3.org/2000/svg"
     width="20"
@@ -1182,6 +1196,7 @@ class PassableLockManagerCard extends LitElement {
     this._localSchedStart = slotData.schedule_start || "00:00:00";
     this._localSchedEnd = slotData.schedule_end || "23:59:59";
     this._localIsTimed = Boolean(slotData.timer_expires_at);
+    this._localNotifyOnActive = Boolean(slotData.notify_on_active);
   }
 
   _closeEdit() {
@@ -1224,6 +1239,7 @@ class PassableLockManagerCard extends LitElement {
         schedule_start: this._localSchedStart || "00:00:00",
         schedule_end: this._localSchedEnd || "23:59:59",
         is_timed: isTimed !== null ? Boolean(isTimed) : null,
+        notify_on_active: Boolean(this._localNotifyOnActive),
       });
 
       if (!this._engineData) {
@@ -1246,6 +1262,7 @@ class PassableLockManagerCard extends LitElement {
         schedule_days: this._localSchedDays || this._fullDaysList,
         schedule_start: this._localSchedStart || "00:00:00",
         schedule_end: this._localSchedEnd || "23:59:59",
+        notify_on_active: Boolean(this._localNotifyOnActive),
       };
 
       this._closeEdit();
@@ -1831,6 +1848,7 @@ class PassableLockManagerCard extends LitElement {
     const pin = (slotData.pin || "").trim();
     const enabled = Boolean(slotData.enabled);
     const guest = Boolean(slotData.guest_mode);
+    const notifyActive = Boolean(slotData.notify_on_active);
     const timerActive = Boolean(slotData.timer_expires_at);
 
     // Treat blank or default "Slot X" without pin as unconfigured
@@ -1883,6 +1901,9 @@ class PassableLockManagerCard extends LitElement {
                 <span class="badge success">Active</span>
                 ${guest
                   ? html`<span class="badge warning">${Icons.User} Guest</span>`
+                  : ""}
+                ${notifyActive
+                  ? html`<span class="badge" style="background: rgba(65, 189, 245, 0.15); color: #41bdf5;">${Icons.Bell} Alert</span>`
                   : ""}
                 ${timerActive
                   ? html`<span class="badge info" title="Temporary access timer active"
@@ -2018,7 +2039,7 @@ class PassableLockManagerCard extends LitElement {
             </div>
 
             <div
-              class="toggle-row no-border"
+              class="toggle-row"
               @click=${() => (this._localGuest = !this._localGuest)}
             >
               <div class="toggle-info">
@@ -2038,6 +2059,30 @@ class PassableLockManagerCard extends LitElement {
               </div>
               <div class="toggle-switch ${this._localGuest ? "active" : ""}">
                 <div class="toggle-knob ${this._localGuest ? "active" : ""}"></div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row no-border"
+              @click=${() => (this._localNotifyOnActive = !this._localNotifyOnActive)}
+            >
+              <div class="toggle-info">
+                <div
+                  style="color: ${this._localNotifyOnActive
+                    ? "#41bdf5"
+                    : "var(--secondary-text-color)"}"
+                >
+                  ${Icons.Bell}
+                </div>
+                <div>
+                  <div class="toggle-title">Notify When Active</div>
+                  <div class="toggle-desc">
+                    Send notification when this slot is enabled or disabled
+                  </div>
+                </div>
+              </div>
+              <div class="toggle-switch ${this._localNotifyOnActive ? "active" : ""}">
+                <div class="toggle-knob ${this._localNotifyOnActive ? "active" : ""}"></div>
               </div>
             </div>
           </div>

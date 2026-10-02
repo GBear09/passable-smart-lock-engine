@@ -35,6 +35,7 @@ def get_default_slot_data(slot: int) -> dict[str, Any]:
         "schedule_days": list(DAYS_OF_WEEK),
         "schedule_start": "00:00:00",
         "schedule_end": "23:59:59",
+        "notify_on_active": False,
     }
 
 
@@ -81,6 +82,8 @@ class PassableLockStorage:
                 s_data["name"] = ""
             if "duration_unit" not in s_data:
                 s_data["duration_unit"] = "hours"
+            if "notify_on_active" not in s_data:
+                s_data["notify_on_active"] = False
 
         return self.data
 

@@ -35,6 +35,8 @@ from .const import (
     DEFAULT_SLOTS_COUNT,
     DOMAIN,
     EVENT_LOCK_ACCESS,
+    EVENT_SLOT_DISABLED,
+    EVENT_SLOT_ENABLED,
     TIMER_ACTION_CLEAR,
     TIMER_ACTION_DISABLE,
 )
@@ -281,9 +283,11 @@ class PassableLockEngine:
         schedule_start: str | None = None,
         schedule_end: str | None = None,
         is_timed: bool | None = None,
+        notify_on_active: bool | None = None,
     ) -> None:
         """Set user PIN code and slot parameters."""
         slot_data = self.storage.get_slot(slot)
+        was_enabled = slot_data.get("enabled", False)
         # If starting a temporary timer, force enabled state to True
         effective_enabled = True if is_timed is True else enabled
 
@@ -308,6 +312,8 @@ class PassableLockEngine:
             updates["schedule_start"] = schedule_start
         if schedule_end is not None:
             updates["schedule_end"] = schedule_end
+        if notify_on_active is not None:
+            updates["notify_on_active"] = notify_on_active
 
         await self.storage.async_update_slot(slot, updates)
 
@@ -330,12 +336,49 @@ class PassableLockEngine:
 
         async_dispatcher_send(self.hass, SIGNAL_SLOT_UPDATED, slot)
 
+        # Fire bus events on state transitions
+        if not was_enabled and effective_enabled:
+            self.hass.bus.async_fire(
+                EVENT_SLOT_ENABLED,
+                {
+                    "slot": slot,
+                    "name": updates.get("name", slot_data.get("name", f"Slot {slot}")),
+                    "guest_mode": updates.get("guest_mode", slot_data.get("guest_mode", False)),
+                    "schedule_enabled": updates.get("schedule_enabled", slot_data.get("schedule_enabled", False)),
+                    "notify_on_active": updates.get("notify_on_active", slot_data.get("notify_on_active", False)),
+                },
+            )
+        elif was_enabled and not effective_enabled:
+            self.hass.bus.async_fire(
+                EVENT_SLOT_DISABLED,
+                {
+                    "slot": slot,
+                    "name": updates.get("name", slot_data.get("name", f"Slot {slot}")),
+                    "guest_mode": updates.get("guest_mode", slot_data.get("guest_mode", False)),
+                    "schedule_enabled": updates.get("schedule_enabled", slot_data.get("schedule_enabled", False)),
+                    "notify_on_active": updates.get("notify_on_active", slot_data.get("notify_on_active", False)),
+                },
+            )
+
     async def async_clear_code(self, slot: int) -> None:
         """Clear user code from storage and physical locks."""
+        slot_data = self.storage.get_slot(slot)
+        was_enabled = slot_data.get("enabled", False)
         self.async_cancel_slot_timer(slot)
         await self.storage.async_clear_slot(slot)
         await self._async_clear_slot_from_locks(slot)
         async_dispatcher_send(self.hass, SIGNAL_SLOT_UPDATED, slot)
+        if was_enabled:
+            self.hass.bus.async_fire(
+                EVENT_SLOT_DISABLED,
+                {
+                    "slot": slot,
+                    "name": slot_data.get("name", f"Slot {slot}"),
+                    "guest_mode": slot_data.get("guest_mode", False),
+                    "schedule_enabled": slot_data.get("schedule_enabled", False),
+                    "notify_on_active": slot_data.get("notify_on_active", False),
+                },
+            )
 
     async def async_enable_code(self, slot: int, update_hardware: bool = True) -> None:
         """Enable code slot."""
@@ -349,14 +392,35 @@ class PassableLockEngine:
         if update_hardware:
             await self._async_push_slot_to_locks(slot)
         async_dispatcher_send(self.hass, SIGNAL_SLOT_UPDATED, slot)
+        self.hass.bus.async_fire(
+            EVENT_SLOT_ENABLED,
+            {
+                "slot": slot,
+                "name": slot_data.get("name", f"Slot {slot}"),
+                "guest_mode": slot_data.get("guest_mode", False),
+                "schedule_enabled": slot_data.get("schedule_enabled", False),
+                "notify_on_active": slot_data.get("notify_on_active", False),
+            },
+        )
 
     async def async_disable_code(self, slot: int, update_hardware: bool = True) -> None:
         """Disable code slot."""
+        slot_data = self.storage.get_slot(slot)
         self.async_cancel_slot_timer(slot)
         await self.storage.async_update_slot(slot, {"enabled": False})
         if update_hardware:
             await self._async_clear_slot_from_locks(slot)
         async_dispatcher_send(self.hass, SIGNAL_SLOT_UPDATED, slot)
+        self.hass.bus.async_fire(
+            EVENT_SLOT_DISABLED,
+            {
+                "slot": slot,
+                "name": slot_data.get("name", f"Slot {slot}"),
+                "guest_mode": slot_data.get("guest_mode", False),
+                "schedule_enabled": slot_data.get("schedule_enabled", False),
+                "notify_on_active": slot_data.get("notify_on_active", False),
+            },
+        )
 
     async def async_start_slot_timer(
         self,
