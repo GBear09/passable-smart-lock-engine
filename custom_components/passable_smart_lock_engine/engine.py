@@ -37,6 +37,7 @@ from .const import (
     EVENT_LOCK_ACCESS,
     EVENT_SLOT_DISABLED,
     EVENT_SLOT_ENABLED,
+    RECURRENCE_BIWEEKLY,
     TIMER_ACTION_CLEAR,
     TIMER_ACTION_DISABLE,
 )
@@ -251,7 +252,25 @@ class PassableLockEngine:
             start_time = slot.get("schedule_start", "00:00:00")
             end_time = slot.get("schedule_end", "23:59:59")
 
-            is_correct_day = current_day in allowed_days
+            is_correct_week = True
+            if slot.get("schedule_recurrence") == RECURRENCE_BIWEEKLY:
+                anchor_str = slot.get("schedule_anchor_date")
+                if anchor_str:
+                    try:
+                        anchor_date = dt_util.parse_date(anchor_str)
+                        if anchor_date:
+                            anchor_monday = anchor_date - timedelta(days=anchor_date.weekday())
+                            current_monday = now_local.date() - timedelta(days=now_local.weekday())
+                            weeks_diff = (current_monday - anchor_monday).days // 7
+                            is_correct_week = (weeks_diff % 2 == 0)
+                    except Exception as err:
+                        _LOGGER.warning(
+                            "Error evaluating bi-weekly schedule for slot %s: %s",
+                            slot_id,
+                            err,
+                        )
+
+            is_correct_day = is_correct_week and (current_day in allowed_days)
             is_within_time = start_time <= current_time_str < end_time
             should_be_enabled = is_correct_day and is_within_time
             currently_enabled = slot.get("enabled", False)
@@ -284,6 +303,8 @@ class PassableLockEngine:
         schedule_end: str | None = None,
         is_timed: bool | None = None,
         notify_on_active: bool | None = None,
+        schedule_recurrence: str | None = None,
+        schedule_anchor_date: str | None = None,
     ) -> None:
         """Set user PIN code and slot parameters."""
         slot_data = self.storage.get_slot(slot)
@@ -314,6 +335,10 @@ class PassableLockEngine:
             updates["schedule_end"] = schedule_end
         if notify_on_active is not None:
             updates["notify_on_active"] = notify_on_active
+        if schedule_recurrence is not None:
+            updates["schedule_recurrence"] = schedule_recurrence
+        if schedule_anchor_date is not None:
+            updates["schedule_anchor_date"] = schedule_anchor_date
 
         await self.storage.async_update_slot(slot, updates)
 

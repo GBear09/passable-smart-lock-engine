@@ -4,7 +4,7 @@ from typing import Final
 
 DOMAIN: Final = "passable_smart_lock_engine"
 NAME: Final = "Passable Smart Lock Engine"
-VERSION: Final = "1.1.0"
+VERSION: Final = "1.2.0"
 
 # Configuration & Options keys
 CONF_LOCKS: Final = "locks"
@@ -61,6 +61,11 @@ DAYS_OF_WEEK: Final = [
     "Friday",
     "Saturday",
 ]
+
+# Recurrence options
+RECURRENCE_WEEKLY: Final = "weekly"
+RECURRENCE_BIWEEKLY: Final = "biweekly"
+RECURRENCE_MODES: Final = [RECURRENCE_WEEKLY, RECURRENCE_BIWEEKLY]
 
 # Action types
 ACTION_SET: Final = "set"

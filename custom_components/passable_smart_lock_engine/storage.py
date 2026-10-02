@@ -11,6 +11,7 @@ from homeassistant.helpers.storage import Store
 from .const import (
     DAYS_OF_WEEK,
     DEFAULT_SLOTS_COUNT,
+    RECURRENCE_WEEKLY,
     STORAGE_KEY,
     STORAGE_VERSION,
     TIMER_ACTION_CLEAR,
@@ -35,6 +36,8 @@ def get_default_slot_data(slot: int) -> dict[str, Any]:
         "schedule_days": list(DAYS_OF_WEEK),
         "schedule_start": "00:00:00",
         "schedule_end": "23:59:59",
+        "schedule_recurrence": RECURRENCE_WEEKLY,
+        "schedule_anchor_date": None,
         "notify_on_active": False,
     }
 
@@ -84,6 +87,10 @@ class PassableLockStorage:
                 s_data["duration_unit"] = "hours"
             if "notify_on_active" not in s_data:
                 s_data["notify_on_active"] = False
+            if "schedule_recurrence" not in s_data:
+                s_data["schedule_recurrence"] = RECURRENCE_WEEKLY
+            if "schedule_anchor_date" not in s_data:
+                s_data["schedule_anchor_date"] = None
 
         return self.data
 

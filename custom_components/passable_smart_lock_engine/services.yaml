@@ -106,6 +106,21 @@ set_code:
       default: false
       selector:
         boolean:
+    schedule_recurrence:
+      name: Schedule Recurrence
+      description: Recurrence frequency ("weekly" or "biweekly").
+      default: "weekly"
+      selector:
+        select:
+          options:
+            - "weekly"
+            - "biweekly"
+    schedule_anchor_date:
+      name: Schedule Anchor Date
+      description: Reference anchor date (YYYY-MM-DD) for calculating bi-weekly alternating weeks.
+      example: "2026-10-02"
+      selector:
+        text:
 
 clear_code:
   name: Clear Lock Code

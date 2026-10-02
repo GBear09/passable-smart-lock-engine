@@ -92,6 +92,8 @@ class PassableLockSlotSwitch(SwitchEntity):
             "code_name": slot_data.get("name", ""),
             "guest_mode": slot_data.get("guest_mode", False),
             "schedule_enabled": slot_data.get("schedule_enabled", False),
+            "schedule_recurrence": slot_data.get("schedule_recurrence", "weekly"),
+            "schedule_anchor_date": slot_data.get("schedule_anchor_date"),
             "notify_on_active": slot_data.get("notify_on_active", False),
             "timer_active": slot_data.get("timer_expires_at") is not None,
             "timer_expires_at": slot_data.get("timer_expires_at"),

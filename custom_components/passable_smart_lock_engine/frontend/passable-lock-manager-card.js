@@ -605,6 +605,31 @@ class PassableLockManagerCard extends LitElement {
     return this._parseTimestamp(raw);
   }
 
+  _getMondayOfWeek(date = new Date(), offsetWeeks = 0) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() + (day === 0 ? -6 : 1 - day) + (offsetWeeks * 7);
+    const monday = new Date(d.getFullYear(), d.getMonth(), diff);
+    const year = monday.getFullYear();
+    const month = String(monday.getMonth() + 1).padStart(2, "0");
+    const dt = String(monday.getDate()).padStart(2, "0");
+    return `${year}-${month}-${dt}`;
+  }
+
+  _isBiweeklyActiveThisWeek(anchorDateStr) {
+    if (!anchorDateStr) return true;
+    try {
+      const anchorMondayStr = this._getMondayOfWeek(new Date(anchorDateStr + "T12:00:00"));
+      const currentMondayStr = this._getMondayOfWeek(new Date());
+      const anchorTime = new Date(anchorMondayStr + "T12:00:00").getTime();
+      const currentTime = new Date(currentMondayStr + "T12:00:00").getTime();
+      const diffWeeks = Math.round((currentTime - anchorTime) / (7 * 86400 * 1000));
+      return Math.abs(diffWeeks) % 2 === 0;
+    } catch (e) {
+      return true;
+    }
+  }
+
   // --- ROLE-BASED ACCESS CONTROL ---
   _canManagePins() {
     if (!this.hass) return false;
@@ -1195,6 +1220,8 @@ class PassableLockManagerCard extends LitElement {
         : [...this._fullDaysList];
     this._localSchedStart = slotData.schedule_start || "00:00:00";
     this._localSchedEnd = slotData.schedule_end || "23:59:59";
+    this._localSchedRecurrence = slotData.schedule_recurrence || "weekly";
+    this._localSchedAnchorDate = slotData.schedule_anchor_date || null;
     this._localIsTimed = Boolean(slotData.timer_expires_at);
     this._localNotifyOnActive = Boolean(slotData.notify_on_active);
   }
@@ -1240,6 +1267,11 @@ class PassableLockManagerCard extends LitElement {
         schedule_end: this._localSchedEnd || "23:59:59",
         is_timed: isTimed !== null ? Boolean(isTimed) : null,
         notify_on_active: Boolean(this._localNotifyOnActive),
+        schedule_recurrence: this._localSchedRecurrence || "weekly",
+        schedule_anchor_date:
+          this._localSchedRecurrence === "biweekly"
+            ? (this._localSchedAnchorDate || this._getMondayOfWeek(new Date(), 0))
+            : null,
       });
 
       if (!this._engineData) {
@@ -1263,6 +1295,11 @@ class PassableLockManagerCard extends LitElement {
         schedule_start: this._localSchedStart || "00:00:00",
         schedule_end: this._localSchedEnd || "23:59:59",
         notify_on_active: Boolean(this._localNotifyOnActive),
+        schedule_recurrence: this._localSchedRecurrence || "weekly",
+        schedule_anchor_date:
+          this._localSchedRecurrence === "biweekly"
+            ? (this._localSchedAnchorDate || this._getMondayOfWeek(new Date(), 0))
+            : null,
       };
 
       this._closeEdit();
@@ -1850,6 +1887,11 @@ class PassableLockManagerCard extends LitElement {
     const guest = Boolean(slotData.guest_mode);
     const notifyActive = Boolean(slotData.notify_on_active);
     const timerActive = Boolean(slotData.timer_expires_at);
+    const schedEnabled = Boolean(slotData.schedule_enabled);
+    const schedRecurrence = slotData.schedule_recurrence || "weekly";
+    const schedAnchor = slotData.schedule_anchor_date;
+    const isBiweekly = schedEnabled && schedRecurrence === "biweekly";
+    const isBiweeklyActive = isBiweekly ? this._isBiweeklyActiveThisWeek(schedAnchor) : true;
 
     // Treat blank or default "Slot X" without pin as unconfigured
     const isDefaultOrEmptyName =
@@ -1894,13 +1936,27 @@ class PassableLockManagerCard extends LitElement {
 
         <div class="badge-container">
           ${!enabled
-            ? html`<span class="badge offline"
-                >${isConfigured ? "Disabled" : "Empty"}</span
-              >`
+            ? html`
+                <span class="badge offline"
+                  >${isConfigured ? "Disabled" : "Empty"}</span
+                >
+                ${schedEnabled
+                  ? isBiweekly
+                    ? isBiweeklyActive
+                      ? html`<span class="badge" style="background: rgba(171, 71, 188, 0.15); color: #ab47bc;" title="Bi-weekly schedule (Active week)">${Icons.Calendar} Bi-weekly</span>`
+                      : html`<span class="badge offline" style="color: #ab47bc; border-color: rgba(171, 71, 188, 0.3);" title="Bi-weekly schedule (Off week)">${Icons.Calendar} Off Week</span>`
+                    : html`<span class="badge" style="background: rgba(171, 71, 188, 0.15); color: #ab47bc;" title="Scheduled access">${Icons.Calendar} Sched</span>`
+                  : ""}
+              `
             : html`
                 <span class="badge success">Active</span>
                 ${guest
                   ? html`<span class="badge warning">${Icons.User} Guest</span>`
+                  : ""}
+                ${schedEnabled
+                  ? isBiweekly
+                    ? html`<span class="badge" style="background: rgba(171, 71, 188, 0.15); color: #ab47bc;" title="Bi-weekly schedule active this week">${Icons.Calendar} Bi-weekly</span>`
+                    : html`<span class="badge" style="background: rgba(171, 71, 188, 0.15); color: #ab47bc;" title="Scheduled access active">${Icons.Calendar} Sched</span>`
                   : ""}
                 ${notifyActive
                   ? html`<span class="badge" style="background: rgba(65, 189, 245, 0.15); color: #41bdf5;">${Icons.Bell} Alert</span>`
@@ -2247,6 +2303,73 @@ class PassableLockManagerCard extends LitElement {
                   ></div>
                 </div>
               </div>
+
+              <div class="input-group" style="margin-top: 14px; opacity: ${this._localSchedEnabled ? "1" : "0.5"}">
+                <label class="input-label">Recurrence</label>
+                <div style="display: flex; gap: 8px;">
+                  <button
+                    type="button"
+                    class="button-outline"
+                    style="flex: 1; padding: 6px 12px; font-size: 13px; font-weight: 500; border-radius: 8px; ${this._localSchedRecurrence !== "biweekly" ? "background: var(--primary-color, #2196f3); color: #fff; border-color: var(--primary-color, #2196f3);" : ""}"
+                    ?disabled=${!this._localSchedEnabled}
+                    @click=${() => {
+                      this._localSchedRecurrence = "weekly";
+                      this.requestUpdate();
+                    }}
+                  >
+                    Every Week
+                  </button>
+                  <button
+                    type="button"
+                    class="button-outline"
+                    style="flex: 1; padding: 6px 12px; font-size: 13px; font-weight: 500; border-radius: 8px; ${this._localSchedRecurrence === "biweekly" ? "background: var(--primary-color, #2196f3); color: #fff; border-color: var(--primary-color, #2196f3);" : ""}"
+                    ?disabled=${!this._localSchedEnabled}
+                    @click=${() => {
+                      this._localSchedRecurrence = "biweekly";
+                      if (!this._localSchedAnchorDate) {
+                        this._localSchedAnchorDate = this._getMondayOfWeek(new Date(), 0);
+                      }
+                      this.requestUpdate();
+                    }}
+                  >
+                    Every 2 Weeks
+                  </button>
+                </div>
+              </div>
+
+              ${this._localSchedRecurrence === "biweekly"
+                ? html`
+                    <div class="input-group" style="margin-top: 10px; opacity: ${this._localSchedEnabled ? "1" : "0.5"}">
+                      <label class="input-label">Bi-weekly Cycle</label>
+                      <div style="display: flex; gap: 8px;">
+                        <button
+                          type="button"
+                          class="button-outline"
+                          style="flex: 1; padding: 6px 12px; font-size: 12px; border-radius: 8px; ${this._isBiweeklyActiveThisWeek(this._localSchedAnchorDate) ? "background: rgba(var(--rgb-primary-color, 33, 150, 243), 0.15); color: var(--primary-color, #2196f3); border-color: var(--primary-color, #2196f3); font-weight: 600;" : ""}"
+                          ?disabled=${!this._localSchedEnabled}
+                          @click=${() => {
+                            this._localSchedAnchorDate = this._getMondayOfWeek(new Date(), 0);
+                            this.requestUpdate();
+                          }}
+                        >
+                          ● Active This Week
+                        </button>
+                        <button
+                          type="button"
+                          class="button-outline"
+                          style="flex: 1; padding: 6px 12px; font-size: 12px; border-radius: 8px; ${!this._isBiweeklyActiveThisWeek(this._localSchedAnchorDate) ? "background: rgba(var(--rgb-primary-color, 33, 150, 243), 0.15); color: var(--primary-color, #2196f3); border-color: var(--primary-color, #2196f3); font-weight: 600;" : ""}"
+                          ?disabled=${!this._localSchedEnabled}
+                          @click=${() => {
+                            this._localSchedAnchorDate = this._getMondayOfWeek(new Date(), 1);
+                            this.requestUpdate();
+                          }}
+                        >
+                          ○ Active Next Week
+                        </button>
+                      </div>
+                    </div>
+                  `
+                : ""}
 
               <div class="input-group">
                 <label class="input-label">Active Days</label>
