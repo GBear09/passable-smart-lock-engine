@@ -1,15 +1,15 @@
-import {
-  LitElement,
-  html,
-  css,
-} from "https://unpkg.com/lit@3.0.0/index.js?module";
+const CARD_VERSION = "2.3.1";
 
-const CARD_VERSION = "2.3.0";
+const LitElement = Object.getPrototypeOf(
+  customElements.get("hui-entities-card")
+);
+const html = LitElement.prototype.html;
+const css = LitElement.prototype.css;
 
 console.info(
-  `%c PASSABLE-LOCK-MANAGER-CARD %c v${CARD_VERSION} `,
-  "color: white; background: #2196f3; font-weight: bold;",
-  "color: white; background: #10b981; font-weight: bold;"
+  `%c PASSABLE-LOCK-MANAGER-CARD %c v${CARD_VERSION} IS LOADED `,
+  "color: white; background: #0284c7; font-weight: bold; padding: 2px 6px; border-radius: 4px 0 0 4px;",
+  "color: #0284c7; background: #e0f2fe; font-weight: bold; padding: 2px 6px; border-radius: 0 4px 4px 0;"
 );
 
 // --- INLINE ICONS (Extracted from Lucide & MDI) ---
@@ -1391,9 +1391,9 @@ class PassableLockManagerCard extends LitElement {
     if (!this.hass) return html`<div class="loading">Loading...</div>`;
 
     return html`
-      <div class="container">
+      <ha-card class="container">
         ${!this._editingSlot ? this._renderMainView() : this._renderEdit()}
-      </div>
+      </ha-card>
     `;
   }
 
@@ -1437,8 +1437,11 @@ class PassableLockManagerCard extends LitElement {
       <div class="view fade-in">
         <!-- Main Card Header -->
         <div class="header">
-          <div>
-            <h1 class="title">${title}</h1>
+          <div class="header-left">
+            <h1 class="title">
+              <ha-icon icon="mdi:lock-smart" style="margin-right: 8px; color: var(--primary-color);"></ha-icon>
+              ${title}
+            </h1>
             <p class="subtitle">${subtitle}</p>
           </div>
 
@@ -2473,7 +2476,7 @@ class PassableLockManagerCard extends LitElement {
         color: var(--primary-text-color);
         padding: 20px;
       }
-      .container {
+      ha-card.container {
         font-family: Roboto, "Segoe UI", sans-serif;
         background-color: var(
           --ha-card-background,
@@ -2508,21 +2511,27 @@ class PassableLockManagerCard extends LitElement {
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
         border-bottom: 1px solid var(--divider-color, #e0e0e0);
         padding-bottom: 16px;
       }
+      .header-left {
+        display: flex;
+        flex-direction: column;
+      }
       .title {
-        font-size: 22px;
-        font-weight: 600;
+        font-size: 24px;
+        font-weight: 500;
         margin: 0;
         letter-spacing: -0.01em;
+        display: flex;
+        align-items: center;
       }
       .subtitle {
         color: var(--secondary-text-color, #757575);
-        font-size: 13px;
+        font-size: 14px;
+        margin: 0;
         margin-top: 4px;
-        margin-bottom: 0;
       }
       .header-right {
         display: flex;
