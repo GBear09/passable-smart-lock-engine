@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
     async_track_point_in_time,
@@ -645,12 +646,20 @@ class PassableLockEngine:
             is_guest,
         )
 
-        # Directly activate Guest Mode helper if the slot has guest mode enabled
-        if is_guest:
+        # Directly activate Guest Mode helper only when no tracked homeowner is home.
+        # Supports both Guest Mode keypad slots (including Slot 1 "Family" for kids arriving
+        # home before parents) and Biometric fingerprint unlocks while homeowners are away.
+        parents_home = (
+            self.hass.states.is_state("binary_sensor.myles_is_home", "on")
+            or self.hass.states.is_state("binary_sensor.megan_is_home", "on")
+            or self.hass.states.is_state("binary_sensor.someone_is_home", "on")
+        )
+        if (is_guest or is_biometric) and not parents_home:
             guest_mode_entity = "input_boolean.guest_mode"
             if self.hass.states.get(guest_mode_entity):
                 _LOGGER.info(
-                    "Guest Mode code used (Slot %s: %s). Activating %s",
+                    "Door unlocked while homeowners away (%s Slot %s: %s). Activating %s",
+                    method_name,
                     slot_str,
                     actor,
                     guest_mode_entity,
@@ -664,6 +673,12 @@ class PassableLockEngine:
                     )
                 except Exception as err:
                     _LOGGER.error("Failed to activate %s: %s", guest_mode_entity, err)
+        elif is_guest and parents_home:
+            _LOGGER.debug(
+                "Skipping Guest Mode activation for Slot %s (%s) because a homeowner is already home",
+                slot_str,
+                actor,
+            )
 
         try:
             self.hass.bus.async_fire(EVENT_LOCK_ACCESS, self.last_activity)
@@ -715,32 +730,78 @@ class PassableLockEngine:
     def _handle_zwave_notification(self, event: Event) -> None:
         """Capture Z-Wave lock keypad / biometric notification events."""
         data = event.data
-        parameters = data.get("parameters", {})
-        user_code_id = parameters.get("userId") or parameters.get("userCode")
-        event_label = data.get("event_label", "")
+        parameters = data.get("parameters") or {}
+        event_label = str(data.get("event_label") or "")
 
-        if "Keypad unlock operation" in event_label or user_code_id:
-            try:
-                slot = int(user_code_id) if user_code_id else 1
-            except (ValueError, TypeError):
-                slot = 1
+        is_keypad_event = "keypad unlock" in event_label.lower()
+        is_biometric_event = (
+            "fingerprint" in event_label.lower()
+            or "biometric" in event_label.lower()
+            or str(parameters.get("alarmType", "")) == "145"
+        )
+        user_code_id = (
+            parameters.get("userId")
+            or parameters.get("userCode")
+            or parameters.get("alarmLevel")
+        )
 
-            node_id = data.get("node_id", "Door Lock")
-            door_name = str(node_id)
-            for lock_entity in self.locks:
-                st = self.hass.states.get(lock_entity)
-                if st and (st.attributes.get("node_id") == node_id):
-                    door_name = st.attributes.get("friendly_name", lock_entity)
-                    break
+        if not (is_keypad_event or is_biometric_event or user_code_id):
+            return
 
-            self.hass.async_create_task(
-                self.async_handle_unlock_event(
-                    door=door_name,
-                    method="Keypad",
-                    slot=slot,
-                    alarm_type="19",
-                )
+        device_id = data.get("device_id")
+        node_id = data.get("node_id")
+        ent_reg = er.async_get(self.hass)
+        matched_lock: str | None = None
+        door_name: str | None = None
+
+        for lock_entity in self.locks:
+            entry = ent_reg.async_get(lock_entity) if device_id else None
+            st = self.hass.states.get(lock_entity)
+            if (entry and entry.device_id == device_id) or (
+                st and node_id is not None and st.attributes.get("node_id") == node_id
+            ):
+                matched_lock = lock_entity
+                if st and st.attributes.get("friendly_name"):
+                    door_name = st.attributes["friendly_name"]
+                else:
+                    raw_door = lock_entity.split(".", 1)[-1]
+                    door_name = raw_door.replace("_", " ").title()
+                break
+
+        if not matched_lock or not door_name:
+            return
+
+        raw_lock_name = matched_lock.split(".", 1)[-1]
+        alarm_type_raw = parameters.get("alarmType")
+        if not alarm_type_raw:
+            type_st = self.hass.states.get(f"sensor.{raw_lock_name}_alarm_type")
+            if type_st and type_st.state:
+                alarm_type_raw = type_st.state.strip()
+
+        alarm_type = "145" if (is_biometric_event or str(alarm_type_raw) == "145") else "19"
+        method = "Fingerprint" if alarm_type == "145" else "Keypad"
+
+        if not user_code_id:
+            level_st = self.hass.states.get(f"sensor.{raw_lock_name}_alarm_level")
+            if level_st and str(level_st.state).strip().isdigit():
+                user_code_id = level_st.state.strip()
+
+        try:
+            slot = int(user_code_id) if user_code_id is not None else 0
+        except (ValueError, TypeError):
+            slot = 0
+
+        if slot <= 0:
+            return
+
+        self.hass.async_create_task(
+            self.async_handle_unlock_event(
+                door=door_name,
+                method=method,
+                slot=slot,
+                alarm_type=alarm_type,
             )
+        )
 
     async def async_import_from_yaml_helpers(self) -> int:
         """Scan HA states for existing input_* helpers and import into .storage."""
@@ -766,6 +827,11 @@ class PassableLockEngine:
             if not name_state and not pin_state:
                 continue
 
+            name_val = name_state.state if name_state else f"Slot {i}"
+            pin_val = pin_state.state if pin_state else ""
+            if pin_val in ("unknown", "unavailable"):
+                pin_val = ""
+
             existing_slot = self.storage.get_slot(i)
             # If the storage slot is already active/has a PIN and helper has no PIN, do NOT wipe it
             if existing_slot.get("pin") and not pin_val:
@@ -774,9 +840,6 @@ class PassableLockEngine:
                     i,
                 )
                 continue
-
-            name_val = name_state.state if name_state else f"Slot {i}"
-            pin_val = pin_state.state if pin_state else ""
             enabled_val = (
                 self.hass.states.get(enabled_entity).state == "on"
                 if self.hass.states.get(enabled_entity)

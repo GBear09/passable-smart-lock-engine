@@ -1,7 +1,10 @@
 const CARD_VERSION = "2.3.1";
 
 const LitElement = Object.getPrototypeOf(
-  customElements.get("hui-entities-card")
+  customElements.get("hui-entities-card") ||
+    customElements.get("hui-masonry-view") ||
+    customElements.get("hui-view") ||
+    customElements.get("ha-panel-lovelace")
 );
 const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;

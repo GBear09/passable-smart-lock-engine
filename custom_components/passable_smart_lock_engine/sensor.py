@@ -75,9 +75,14 @@ class PassableActiveSlotsSensor(SensorEntity):
         """Register dispatcher callback."""
         self.async_on_remove(
             async_dispatcher_connect(
-                self.hass, SIGNAL_SLOT_UPDATED, lambda _: self.schedule_update_ha_state()
+                self.hass, SIGNAL_SLOT_UPDATED, self._handle_slot_updated
             )
         )
+
+    @callback
+    def _handle_slot_updated(self, _slot_num: Any = None) -> None:
+        """Handle slot update on the event loop."""
+        self.async_write_ha_state()
 
 
 class PassableLastActivitySensor(SensorEntity):
@@ -117,6 +122,11 @@ class PassableLastActivitySensor(SensorEntity):
             async_dispatcher_connect(
                 self.hass,
                 SIGNAL_ACTIVITY_UPDATED,
-                lambda: self.schedule_update_ha_state(),
+                self._handle_activity_updated,
             )
         )
+
+    @callback
+    def _handle_activity_updated(self) -> None:
+        """Handle activity update on the event loop."""
+        self.async_write_ha_state()

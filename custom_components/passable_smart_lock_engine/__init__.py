@@ -45,7 +45,7 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
         return
 
     card_path = Path(__file__).parent / "frontend" / "passable-lock-manager-card.js"
-    if not card_path.is_file():
+    if not await hass.async_add_executor_job(card_path.is_file):
         _LOGGER.warning("Passable Lock Manager Card file not found at %s", card_path)
         return
 

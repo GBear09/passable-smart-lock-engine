@@ -60,6 +60,10 @@ class PassableLockAccessEvent(EventEntity):
         """Trigger event when new unlock occurs."""
         activity = self.engine.last_activity
         method = activity.get("method", "keypad").lower()
-        event_type = "biometric" if "biometric" in method else "keypad"
+        event_type = (
+            "biometric"
+            if ("biometric" in method or "fingerprint" in method)
+            else "keypad"
+        )
         self._trigger_event(event_type, activity)
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
